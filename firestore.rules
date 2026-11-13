@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsQuiz() {
+      return signedIn() && resource.data.hostId == request.auth.uid;
+    }
+
+    function validQuizShape() {
+      return request.resource.data.keys().hasAll([
+          'hostId',
+          'title',
+          'description',
+          'questions',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'hostId',
+          'title',
+          'description',
+          'questions',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3
+        && request.resource.data.title.size() <= 100
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 500
+        && request.resource.data.questions is list
+        && request.resource.data.questions.size() >= 1
+        && request.resource.data.questions.size() <= 50
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    match /quizzes/{quizId} {
+      allow create: if signedIn() && validQuizShape();
+      allow read: if ownsQuiz();
+      allow update: if ownsQuiz()
+        && request.resource.data.hostId == resource.data.hostId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validQuizShape();
+      allow delete: if ownsQuiz();
+    }
+
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
+    match /gameResults/{resultId} {
+      allow read: if signedIn()
+        && (resource.data.hostUid == request.auth.uid
+          || resource.data.participantUids.hasAny([request.auth.uid]));
+      allow create, update: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.keys().hasAll([
+          'pin',
+          'hostUid',
+          'quizId',
+          'quizTitle',
+          'participantUids',
+          'standings',
+          'totalQuestions',
+          'createdAt',
+          'endedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'pin',
+          'hostUid',
+          'quizId',
+          'quizTitle',
+          'participantUids',
+          'standings',
+          'totalQuestions',
+          'createdAt',
+          'endedAt'
+        ])
+        && request.resource.data.pin is string
+        && request.resource.data.pin.matches('^[0-9]{6}$')
+        && request.resource.data.quizId is string
+        && request.resource.data.quizTitle is string
+        && request.resource.data.participantUids is list
+        && request.resource.data.standings is list
+        && request.resource.data.totalQuestions is int
+        && request.resource.data.createdAt is int
+        && request.resource.data.endedAt is timestamp;
+      allow delete: if false;
+    }
+  }
+}
