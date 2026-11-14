@@ -82,6 +82,7 @@ function HostGame() {
     [game?.participants],
   )
   const question = game?.currentQuestion
+  const answerReveal = game?.answerReveal
   const questionDeadline = question ? question.startedAt + question.timeLimit * 1000 : 0
   const secondsRemaining = question
     ? Math.max(0, Math.ceil((questionDeadline - serverTime) / 1000))
@@ -158,6 +159,8 @@ function HostGame() {
 
   function handleStartNextQuestion() {
     if (!pin || !user || !question) return
+    const gamePin = pin
+    const nextQuestionIndex = question.index + 1
     setError('')
     setWorking(true)
     setNextQuestionCountdown(5)
@@ -168,7 +171,7 @@ function HostGame() {
       if (secondsRemaining === 0) {
         nextQuestionTimer.current = null
         setNextQuestionCountdown(null)
-        publishQuestion(pin, question.index + 1)
+        publishQuestion(gamePin, nextQuestionIndex)
           .catch((actionError: unknown) =>
             setError(`Starting the next question failed: ${getLiveGameErrorMessage(actionError)}`),
           )
@@ -383,15 +386,15 @@ function HostGame() {
         </div>
       )}
 
-      {game?.status === 'answerReview' && question && game.answerReveal && (
+      {game?.status === 'answerReview' && question && answerReveal && (
         <div className="mt-8 rounded-3xl border border-emerald-300/15 bg-[#11172a] p-5 sm:p-7">
           <span className="text-sm font-bold text-emerald-200">Question {question.index + 1} · Answer revealed</span>
           <h2 className="mt-3 text-2xl font-bold leading-snug">{question.prompt}</h2>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {question.options.map((option, index) => (
-              <div className={`rounded-xl border p-4 text-sm ${index === game.answerReveal?.correctIndex ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100' : 'border-white/[0.08] bg-[#0b1020] text-slate-300'}`} key={index}>
+              <div className={`rounded-xl border p-4 text-sm ${index === answerReveal.correctIndex ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100' : 'border-white/[0.08] bg-[#0b1020] text-slate-300'}`} key={index}>
                 <span className="mr-3 font-bold opacity-60">{String.fromCharCode(65 + index)}</span>{option}
-                {index === game.answerReveal.correctIndex && <span className="ml-2 text-xs font-bold text-emerald-200">CORRECT</span>}
+                {index === answerReveal.correctIndex && <span className="ml-2 text-xs font-bold text-emerald-200">CORRECT</span>}
               </div>
             ))}
           </div>
