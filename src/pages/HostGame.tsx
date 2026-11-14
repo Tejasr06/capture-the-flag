@@ -6,6 +6,7 @@ import FinalLeaderboard from '../components/FinalLeaderboard'
 import ParticipantAvatar from '../components/ParticipantAvatar'
 import QuestionScoreboard from '../components/QuestionScoreboard'
 import { useAuth } from '../hooks/useAuth'
+import { QUESTION_READING_DURATION_MS } from '../utils/gameTiming'
 import type { LiveGame, LiveScore } from '../types/game'
 import {
   closeQuestion,
@@ -99,9 +100,28 @@ function HostGame() {
     [participants],
   )
   const question = game?.currentQuestion
-  const questionDeadline = question ? question.startedAt + question.timeLimit * 1000 : 0
+  const questionAnswerStartsAt = question
+    ? question.startedAt + QUESTION_READING_DURATION_MS
+    : 0
+  const questionIsReading =
+    question !== null &&
+    question !== undefined &&
+    (!serverTimeReady || serverTime < questionAnswerStartsAt)
+  const questionReadSecondsRemaining = questionIsReading
+    ? serverTimeReady
+      ? Math.max(0, Math.ceil((questionAnswerStartsAt - serverTime) / 1000))
+      : Math.ceil(QUESTION_READING_DURATION_MS / 1000)
+    : 0
+  const questionDeadline = question
+    ? questionAnswerStartsAt + question.timeLimit * 1000
+    : 0
   const secondsRemaining = question
-    ? Math.max(0, Math.ceil((questionDeadline - serverTime) / 1000))
+    ? serverTimeReady
+      ? Math.max(
+          0,
+          Math.ceil((questionDeadline - Math.max(serverTime, questionAnswerStartsAt)) / 1000),
+        )
+      : question.timeLimit
     : 0
   const nextQuestionSecondsRemaining =
     game?.countdownEndsAt !== undefined
@@ -433,8 +453,8 @@ function HostGame() {
             <span className="text-sm font-bold text-violet-200">
               Question {question.index + 1} of {game.totalQuestions}
             </span>
-            <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${secondsRemaining <= 5 ? 'bg-rose-400/10 text-rose-200' : 'bg-orange-400/10 text-orange-200'}`}>
-              {secondsRemaining}s remaining
+            <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${!questionIsReading && secondsRemaining <= 5 ? 'bg-rose-400/10 text-rose-200' : 'bg-orange-400/10 text-orange-200'}`}>
+              {questionIsReading ? `Reading: ${questionReadSecondsRemaining}s` : `${secondsRemaining}s remaining`}
             </span>
           </div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
@@ -458,7 +478,7 @@ function HostGame() {
             </p>
             <button
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/5 disabled:opacity-50"
-              disabled={working}
+              disabled={working || questionIsReading}
               onClick={() => void handleCloseQuestion()}
               type="button"
             >

@@ -3,6 +3,7 @@ import {
   isParticipantAvatarId,
   resolveParticipantAvatarId,
 } from '../utils/participantAvatars'
+import { QUESTION_READING_DURATION_MS } from '../utils/gameTiming'
 import { signInAnonymously } from 'firebase/auth'
 import {
   get,
@@ -577,7 +578,8 @@ export async function closeQuestion(pin: string, hostUid: string): Promise<void>
   if (typeof startedAt !== 'number' || !Number.isFinite(startedAt)) {
     throw new Error('The active question start time is invalid.')
   }
-  const deadline = startedAt + question.timeLimit * 1000
+  const answerStartedAt = startedAt + QUESTION_READING_DURATION_MS
+  const deadline = answerStartedAt + question.timeLimit * 1000
   const updates: Record<string, unknown> = {}
   let previousScoreSnapshots
   try {
@@ -602,11 +604,11 @@ export async function closeQuestion(pin: string, hostUid: string): Promise<void>
       Number.isInteger(optionIndex) &&
       typeof submittedAt === 'number' &&
       Number.isFinite(submittedAt) &&
-      submittedAt >= startedAt &&
+      submittedAt >= answerStartedAt &&
       submittedAt <= Math.min(deadline, serverNow + 1000) &&
       optionIndex === question.correctIndex
     ) {
-      const answerTime = Math.max(startedAt, Math.min(submittedAt, serverNow))
+      const answerTime = Math.max(answerStartedAt, Math.min(submittedAt, serverNow))
       const speedBonus = Math.max(0, deadline - answerTime) / (question.timeLimit * 1000)
       points = Math.round(question.points * (0.5 + 0.5 * speedBonus))
     }

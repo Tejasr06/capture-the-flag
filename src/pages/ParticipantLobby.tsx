@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import FinalLeaderboard from '../components/FinalLeaderboard'
 import ParticipantAvatar from '../components/ParticipantAvatar'
 import { useAuth } from '../hooks/useAuth'
+import { QUESTION_READING_DURATION_MS } from '../utils/gameTiming'
 import type { LiveGame, LiveScore } from '../types/game'
 import {
   getLiveGameErrorMessage,
@@ -113,13 +114,31 @@ function ParticipantLobby() {
     (a, b) => a.joinedAt - b.joinedAt,
   )
   const connectedParticipants = sortedParticipants.filter((item) => item.connected)
+  const questionAnswerStartsAt = question
+    ? question.startedAt + QUESTION_READING_DURATION_MS
+    : 0
+  const questionIsReading =
+    question !== null &&
+    question !== undefined &&
+    (!serverTimeReady || serverTime < questionAnswerStartsAt)
+  const questionReadSecondsRemaining = questionIsReading
+    ? serverTimeReady
+      ? Math.max(0, Math.ceil((questionAnswerStartsAt - serverTime) / 1000))
+      : Math.ceil(QUESTION_READING_DURATION_MS / 1000)
+    : 0
   const secondsRemaining = question
-    ? Math.max(
-        0,
-        Math.ceil(
-          (question.startedAt + question.timeLimit * 1000 - serverTime) / 1000,
-        ),
-      )
+    ? serverTimeReady
+      ? Math.max(
+          0,
+          Math.ceil(
+            (
+              questionAnswerStartsAt +
+              question.timeLimit * 1000 -
+              Math.max(serverTime, questionAnswerStartsAt)
+            ) / 1000,
+          ),
+        )
+      : question.timeLimit
     : 0
   const nextQuestionSecondsRemaining =
     game?.countdownEndsAt !== undefined
@@ -342,32 +361,6 @@ function ParticipantLobby() {
 
           {game?.status === 'question' && question && (
             <section aria-label={`Question ${question.index + 1}`} className="mt-7">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-sm font-semibold text-slate-300">Choose one answer</span>
-                <span
-                  aria-live="polite"
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold ${
-                    secondsRemaining <= 5
-                      ? 'bg-rose-400/10 text-rose-200'
-                      : 'bg-orange-400/10 text-orange-200'
-                  }`}
-                >
-                  <Clock3 aria-hidden="true" size={15} />
-                  {secondsRemaining}s
-                </span>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className={`h-full rounded-full transition-[width] duration-300 ${
-                    secondsRemaining <= 5
-                      ? 'bg-rose-400'
-                      : 'bg-gradient-to-r from-violet-500 to-blue-400'
-                  }`}
-                  style={{
-                    width: `${Math.min(100, (secondsRemaining / question.timeLimit) * 100)}%`,
-                  }}
-                />
-              </div>
               <h2 className="mt-6 text-2xl font-bold leading-snug">{question.prompt}</h2>
               {question.imageUrl && (
                 <img
@@ -376,41 +369,79 @@ function ParticipantLobby() {
                   src={question.imageUrl}
                 />
               )}
-              <div className="mt-5 grid gap-3">
-                {question.options.map((option, index) => {
-                  const isSelected = selectedOption === index
-                  return (
-                    <button
-                      aria-pressed={isSelected}
-                      className={`flex min-h-14 items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
-                        isSelected
-                          ? 'border-violet-300/50 bg-violet-400/15 text-white'
-                          : 'border-white/[0.08] bg-[#0b1020] text-slate-200 hover:border-white/20'
-                      } disabled:cursor-not-allowed disabled:opacity-70`}
-                      disabled={submittedOption !== null || secondsRemaining === 0 || submitting}
-                      key={index}
-                      onClick={() => void handleSubmitAnswer(index)}
-                      type="button"
+              {questionIsReading ? (
+                <div
+                  aria-live="polite"
+                  className="mt-7 flex items-center justify-center gap-4 rounded-2xl border border-violet-300/20 bg-violet-300/[0.08] px-5 py-5"
+                  role="status"
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-violet-400/15 text-2xl font-black tabular-nums text-violet-100">
+                    {questionReadSecondsRemaining}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-200">
+                    Read the question. Answer choices appear in {questionReadSecondsRemaining} seconds.
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="mt-6 flex items-center justify-between gap-4">
+                    <span className="text-sm font-semibold text-slate-300">Choose one answer</span>
+                    <span
+                      aria-live="polite"
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold ${
+                        secondsRemaining <= 5
+                          ? 'bg-rose-400/10 text-rose-200'
+                          : 'bg-orange-400/10 text-orange-200'
+                      }`}
                     >
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.07] text-xs font-bold">
-                        {String.fromCharCode(65 + index)}
-                      </span>
-                      <span className="flex-1">{option}</span>
-                      {isSelected && <Check aria-hidden="true" className="text-violet-200" size={17} />}
-                    </button>
-                  )
-                })}
-              </div>
-              {submitting && (
-                <p className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-200" role="status">
-                  <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />
-                  Submitting your answer…
-                </p>
-              )}
-              {submittedOption !== null && !submitting && (
-                <p className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.08] p-4 text-sm font-semibold text-emerald-100" role="status">
-                  Answer submitted. You can’t change it. Wait for the host to close the question.
-                </p>
+                      <Clock3 aria-hidden="true" size={15} />
+                      {secondsRemaining}s
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className={`h-full rounded-full transition-[width] duration-300 ${
+                        secondsRemaining <= 5
+                          ? 'bg-rose-400'
+                          : 'bg-gradient-to-r from-violet-500 to-blue-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, (secondsRemaining / question.timeLimit) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="mt-5 grid gap-3">
+                    {question.options.map((option, index) => {
+                      const isSelected = selectedOption === index
+                      return (
+                        <button
+                          aria-pressed={isSelected}
+                          className={`flex min-h-14 items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                            isSelected
+                              ? 'border-violet-300/50 bg-violet-400/15 text-white'
+                              : 'border-white/[0.08] bg-[#0b1020] text-slate-200 hover:border-white/20'
+                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                          disabled={submittedOption !== null || secondsRemaining === 0 || submitting}
+                          key={index}
+                          onClick={() => void handleSubmitAnswer(index)}
+                          type="button"
+                        >
+                          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.07] text-xs font-bold">
+                            {String.fromCharCode(65 + index)}
+                          </span>
+                          <span className="flex-1">{option}</span>
+                          {isSelected && <Check aria-hidden="true" className="text-violet-200" size={17} />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {submitting && (
+                    <p className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-200" role="status">
+                      <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />
+                      Submitting your answer…
+                    </p>
+                  )}
+                </>
               )}
             </section>
           )}

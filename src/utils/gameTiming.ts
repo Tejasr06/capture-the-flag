@@ -1,0 +1,1 @@
+export const QUESTION_READING_DURATION_MS = 5_000
