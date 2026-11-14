@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Crown, Medal, Trophy } from 'lucide-react'
+import { rankLiveScores } from '../utils/leaderboard'
 import type { LiveScore } from '../types/game'
 
 interface LeaderboardProps {
@@ -15,9 +16,7 @@ function Leaderboard({
   title = 'Live leaderboard',
   variant = 'live',
 }: LeaderboardProps) {
-  const rankedScores = [...scores].sort(
-    (a, b) => b.totalPoints - a.totalPoints || a.nickname.localeCompare(b.nickname),
-  )
+  const rankedScores = rankLiveScores(scores)
   const podiumScores = [rankedScores[1], rankedScores[0], rankedScores[2]].filter(
     (score): score is LiveScore => score !== undefined,
   )

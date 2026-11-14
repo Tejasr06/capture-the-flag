@@ -15,8 +15,8 @@
           ".validate": "newData.isString() && newData.val().length <= 100"
         },
         "status": {
-          ".write": "auth != null && data.parent().child('hostUid').val() === auth.uid && ((data.val() === 'lobby' && newData.val() === 'question') || (data.val() === 'question' && newData.val() === 'answerReview') || (data.val() === 'answerReview' && (newData.val() === 'question' || newData.val() === 'ended')))",
-          ".validate": "newData.val() === 'lobby' || newData.val() === 'question' || newData.val() === 'answerReview' || newData.val() === 'ended'"
+          ".write": "auth != null && data.parent().child('hostUid').val() === auth.uid && ((data.val() === 'lobby' && newData.val() === 'question') || (data.val() === 'question' && newData.val() === 'answerReview') || (data.val() === 'answerReview' && (newData.val() === 'question' || newData.val() === 'ended')) || (data.val() === 'ended' && newData.val() === 'leaderboard'))",
+          ".validate": "newData.val() === 'lobby' || newData.val() === 'question' || newData.val() === 'answerReview' || newData.val() === 'leaderboard' || newData.val() === 'ended'"
         },
         "lateJoining": {
           ".write": "auth != null && data.parent().child('hostUid').val() === auth.uid && data.parent().child('status').val() === 'lobby'",
@@ -113,8 +113,8 @@
         ".write": "auth != null && ((!data.exists() && root.child('liveGames').child($pin).child('hostUid').val() === auth.uid && newData.child('status').val() === 'lobby') || (!newData.exists() && root.child('liveGames').child($pin).child('hostUid').val() === auth.uid && root.child('liveGames').child($pin).child('status').val() === 'lobby'))",
         ".validate": "$pin.matches(/^[0-9]{6}$/) && newData.hasChildren(['status', 'lateJoining'])",
         "status": {
-          ".write": "auth != null && root.child('liveGames').child($pin).child('hostUid').val() === auth.uid && ((data.val() === 'lobby' && newData.val() === 'question') || (data.val() === 'question' && newData.val() === 'answerReview') || (data.val() === 'answerReview' && (newData.val() === 'question' || newData.val() === 'ended')))",
-          ".validate": "newData.val() === 'lobby' || newData.val() === 'question' || newData.val() === 'answerReview' || newData.val() === 'ended'"
+          ".write": "auth != null && root.child('liveGames').child($pin).child('hostUid').val() === auth.uid && ((data.val() === 'lobby' && newData.val() === 'question') || (data.val() === 'question' && newData.val() === 'answerReview') || (data.val() === 'answerReview' && (newData.val() === 'question' || newData.val() === 'ended')) || (data.val() === 'ended' && newData.val() === 'leaderboard'))",
+          ".validate": "newData.val() === 'lobby' || newData.val() === 'question' || newData.val() === 'answerReview' || newData.val() === 'leaderboard' || newData.val() === 'ended'"
         },
         "lateJoining": {
           ".write": "auth != null && root.child('liveGames').child($pin).child('hostUid').val() === auth.uid && root.child('liveGames').child($pin).child('status').val() === 'lobby'",
@@ -145,7 +145,7 @@
     },
     "liveScores": {
       "$pin": {
-        ".read": "auth != null && (auth.uid === root.child('liveGames').child($pin).child('hostUid').val() || (root.child('liveGames').child($pin).child('participants').child(auth.uid).exists() && root.child('liveGames').child($pin).child('status').val() === 'ended'))",
+        ".read": "auth != null && (auth.uid === root.child('liveGames').child($pin).child('hostUid').val() || (root.child('liveGames').child($pin).child('participants').child(auth.uid).exists() && (root.child('liveGames').child($pin).child('status').val() === 'ended' || root.child('liveGames').child($pin).child('status').val() === 'leaderboard')))",
         ".write": false,
         "$uid": {
           ".write": "auth != null && auth.uid === root.child('liveGames').child($pin).child('hostUid').val() && root.child('liveGames').child($pin).child('participants').child($uid).exists()",

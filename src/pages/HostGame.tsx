@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Users, Wifi, WifiOff } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
+import FinalLeaderboard from '../components/FinalLeaderboard'
 import Leaderboard from '../components/Leaderboard'
 import { useAuth } from '../hooks/useAuth'
 import type { LiveGame, LiveScore } from '../types/game'
@@ -9,6 +10,7 @@ import {
   endLiveGame,
   getLiveGameErrorMessage,
   publishQuestion,
+  revealFinalLeaderboard,
   watchLiveGame,
   watchLiveScores,
   watchServerTime,
@@ -211,6 +213,36 @@ function HostGame() {
     } finally {
       setWorking(false)
     }
+  }
+
+  async function handleShowFinalLeaderboard() {
+    if (!pin || !user) return
+    setError('')
+    setWorking(true)
+    try {
+      await revealFinalLeaderboard(pin, user.uid)
+    } catch (actionError) {
+      setError(`Showing the final leaderboard failed: ${getLiveGameErrorMessage(actionError)}`)
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  if (game?.status === 'leaderboard') {
+    return (
+      <FinalLeaderboard
+        error={error}
+        footer={
+          <Link
+            className="rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15"
+            to="/host/dashboard"
+          >
+            Return to dashboard
+          </Link>
+        }
+        scores={scores}
+      />
+    )
   }
 
   return (
@@ -469,12 +501,19 @@ function HostGame() {
         <div className="mt-8">
           <div className="mb-5 rounded-3xl border border-white/10 bg-[#11172a] p-8 text-center">
             <h2 className="text-2xl font-bold">Quiz questions complete</h2>
-            <p className="mt-3 text-slate-400">Final results have been saved.</p>
+            <p className="mt-3 text-slate-400">
+              Final results are saved. Show the leaderboard when you’re ready to reveal the final rankings.
+            </p>
           </div>
-          <Leaderboard scores={scores} title="Final winners" variant="podium" />
-          <Link className="mt-6 inline-flex rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5" to="/host/dashboard">
-            Return to dashboard
-          </Link>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={working}
+            onClick={() => void handleShowFinalLeaderboard()}
+            type="button"
+          >
+            {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
+            Show final leaderboard
+          </button>
         </div>
       )}
     </section>

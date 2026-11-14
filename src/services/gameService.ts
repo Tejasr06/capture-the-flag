@@ -575,6 +575,35 @@ export async function endLiveGame(pin: string, hostUid: string): Promise<void> {
   }
 }
 
+export async function revealFinalLeaderboard(pin: string, hostUid: string): Promise<void> {
+  const host = auth?.currentUser
+  if (!host || host.uid !== hostUid || host.isAnonymous) {
+    throw new Error('Your host session expired. Sign in again before showing the leaderboard.')
+  }
+  const database = await getRealtimeDatabase()
+  const gameReference = ref(database, `liveGames/${pin}`)
+  const gameSnapshot = await get(gameReference)
+  if (!gameSnapshot.exists() || gameSnapshot.child('hostUid').val() !== hostUid) {
+    throw new Error('You are not the host of this game.')
+  }
+  if (gameSnapshot.child('status').val() === 'leaderboard') return
+  if (
+    gameSnapshot.child('status').val() !== 'ended' ||
+    typeof gameSnapshot.child('resultId').val() !== 'string'
+  ) {
+    throw new Error('Finish the game and save its final results before showing the leaderboard.')
+  }
+
+  try {
+    await update(ref(database), {
+      [`liveGames/${pin}/status`]: 'leaderboard',
+      [`gameStatus/${pin}/status`]: 'leaderboard',
+    })
+  } catch (error) {
+    throw new Error(`Could not show the final leaderboard: ${formatRealtimeError(error)}`)
+  }
+}
+
 export function watchServerTime(onTick: (serverTime: number) => void): () => void {
   let unsubscribe: (() => void) | undefined
   let interval: number | undefined

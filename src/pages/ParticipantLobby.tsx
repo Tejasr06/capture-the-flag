@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Check, Clock3, LoaderCircle, Radio, Users, Wifi, WifiOff } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import Leaderboard from '../components/Leaderboard'
+import FinalLeaderboard from '../components/FinalLeaderboard'
 import { useAuth } from '../hooks/useAuth'
 import type { LiveGame, LiveScore } from '../types/game'
 import {
@@ -51,7 +51,7 @@ function ParticipantLobby() {
   useEffect(() => watchServerTime(setServerTime), [])
 
   useEffect(() => {
-    if (!pin || !user || gameStatus !== 'ended') return
+    if (!pin || !user || (gameStatus !== 'ended' && gameStatus !== 'leaderboard')) return
     return watchLiveScores(pin, setScores, setError)
   }, [gameStatus, pin, user])
 
@@ -96,6 +96,10 @@ function ParticipantLobby() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (game?.status === 'leaderboard') {
+    return <FinalLeaderboard currentUid={user.uid} error={error} scores={scores} />
   }
 
   return (
@@ -278,8 +282,10 @@ function ParticipantLobby() {
                 <p className="mt-2 text-sm leading-6 text-slate-300">
                   Your final score is {scores.find((score) => score.uid === user.uid)?.totalPoints ?? 0} points.
                 </p>
+                <p className="mt-3 text-sm leading-6 text-slate-400">
+                  The host will show the final leaderboard shortly.
+                </p>
               </div>
-              <Leaderboard currentUid={user.uid} scores={scores} title="Final winners" variant="podium" />
             </div>
           )}
 
