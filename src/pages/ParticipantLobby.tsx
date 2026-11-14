@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, Clock3, Flag, LoaderCircle, Radio, Users, Wifi, WifiOff } from 'lucide-react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Check, Clock3, Flag, LoaderCircle, LogOut, Radio, Users, Wifi, WifiOff } from 'lucide-react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import FinalLeaderboard from '../components/FinalLeaderboard'
 import ParticipantAvatar from '../components/ParticipantAvatar'
 import { useAuth } from '../hooks/useAuth'
 import type { LiveGame, LiveScore } from '../types/game'
 import {
   getLiveGameErrorMessage,
+  leaveLiveGame,
   joinLiveGame,
   submitAnswer,
   watchLiveGame,
@@ -17,6 +18,7 @@ import {
 
 function ParticipantLobby() {
   const { pin } = useParams()
+  const navigate = useNavigate()
   const { user, loading } = useAuth()
   const [game, setGame] = useState<LiveGame | null>(null)
   const [error, setError] = useState('')
@@ -26,6 +28,7 @@ function ParticipantLobby() {
     optionIndex: number
   } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const [serverTime, setServerTime] = useState(() => Date.now())
   const [serverTimeReady, setServerTimeReady] = useState(false)
   const [scores, setScores] = useState<LiveScore[]>([])
@@ -73,6 +76,7 @@ function ParticipantLobby() {
       !pin ||
       !user ||
       gameStatus !== 'lobby' ||
+      leaving ||
       !participant ||
       participant.connected ||
       reconnectStarted.current
@@ -88,7 +92,7 @@ function ParticipantLobby() {
       .finally(() => {
         reconnectStarted.current = false
       })
-  }, [gameStatus, participant, pin, user])
+  }, [gameStatus, leaving, participant, pin, user])
 
   const questionIndex = question?.index
   const questionStartedAt = question?.startedAt
@@ -138,6 +142,19 @@ function ParticipantLobby() {
     }
   }
 
+  async function handleLeaveLobby() {
+    if (!pin || !user) return
+    setError('')
+    setLeaving(true)
+    try {
+      await leaveLiveGame(pin, user.uid)
+      navigate('/join', { replace: true })
+    } catch (leaveError: unknown) {
+      setError(`Leaving the lobby failed: ${getLiveGameErrorMessage(leaveError)}`)
+      setLeaving(false)
+    }
+  }
+
   if (game?.status === 'leaderboard') {
     return <FinalLeaderboard currentUid={user.uid} error={error} scores={scores} />
   }
@@ -173,6 +190,21 @@ function ParticipantLobby() {
           </header>
 
           <section className="mt-7 rounded-3xl border border-white/80 bg-white/75 p-4 shadow-xl shadow-slate-700/10 backdrop-blur-sm sm:p-7">
+            <div className="mb-4 flex justify-end">
+              <button
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                disabled={leaving}
+                onClick={() => void handleLeaveLobby()}
+                type="button"
+              >
+                {leaving ? (
+                  <LoaderCircle aria-hidden="true" className="animate-spin" size={15} />
+                ) : (
+                  <LogOut aria-hidden="true" size={15} />
+                )}
+                {leaving ? 'Leaving…' : 'Leave lobby'}
+              </button>
+            </div>
             <div className="mx-auto flex max-w-2xl flex-col items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center sm:flex-row sm:text-left">
               <div>
                 <p className="text-xs font-bold tracking-[0.18em] text-slate-500 uppercase">Game PIN</p>

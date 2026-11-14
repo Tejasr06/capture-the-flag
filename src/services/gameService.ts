@@ -354,6 +354,29 @@ export async function joinLiveGame(pin: string, nickname: string): Promise<strin
   return user.uid
 }
 
+export async function leaveLiveGame(pin: string, participantUid: string): Promise<void> {
+  const user = getConfiguredAuth().currentUser
+  if (!user || user.uid !== participantUid || !user.isAnonymous) {
+    throw new Error('Your participant session could not be verified.')
+  }
+
+  const database = await getRealtimeDatabase()
+  const participantReference = ref(database, `liveGames/${pin}/participants/${participantUid}`)
+  const participantSnapshot = await get(participantReference).catch((error: unknown) => {
+    throw new Error(`Could not check your participant record: ${formatRealtimeError(error)}`)
+  })
+  if (!participantSnapshot.exists()) {
+    return
+  }
+  if (participantSnapshot.child('uid').val() !== participantUid) {
+    throw new Error('Your participant record does not match your session.')
+  }
+
+  await update(participantReference, { connected: false }).catch((error: unknown) => {
+    throw new Error(`Could not leave the game: ${formatRealtimeError(error)}`)
+  })
+}
+
 export async function publishQuestion(
   pin: string,
   questionIndex: number,
