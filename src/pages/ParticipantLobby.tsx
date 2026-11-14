@@ -389,19 +389,6 @@ function ParticipantLobby() {
           {game?.status === 'answerReview' && question && game.answerReveal && (
             <section aria-live="polite" className="mt-7">
               <h2 className="text-2xl font-bold leading-snug">{question.prompt}</h2>
-              {submittedOption === null ? (
-                <p className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
-                  No answer was submitted this time.
-                </p>
-              ) : submittedOption === game.answerReveal.correctIndex ? (
-                <p className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.08] p-4 text-sm font-semibold text-emerald-100">
-                  Nice one! Your answer was correct.
-                </p>
-              ) : (
-                <p className="mt-5 rounded-xl border border-rose-300/20 bg-rose-300/[0.08] p-4 text-sm font-semibold text-rose-100">
-                  Not quite. Check the correct answer below.
-                </p>
-              )}
               <div className="mt-5 grid gap-3">
                 {question.options.map((option, index) => (
                   <div
