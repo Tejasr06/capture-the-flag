@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Users, Wifi, WifiOff } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import FinalLeaderboard from '../components/FinalLeaderboard'
-import Leaderboard from '../components/Leaderboard'
+import QuestionScoreboard from '../components/QuestionScoreboard'
 import { useAuth } from '../hooks/useAuth'
 import type { LiveGame, LiveScore } from '../types/game'
 import {
@@ -93,7 +93,6 @@ function HostGame() {
     [game?.participants],
   )
   const question = game?.currentQuestion
-  const answerReveal = game?.answerReveal
   const questionDeadline = question ? question.startedAt + question.timeLimit * 1000 : 0
   const secondsRemaining = question
     ? Math.max(0, Math.ceil((questionDeadline - serverTime) / 1000))
@@ -290,7 +289,7 @@ function HostGame() {
           {game?.status === 'lobby'
             ? 'WAITING FOR PLAYERS'
             : game?.status === 'answerReview'
-              ? 'ANSWER REVIEW'
+              ? 'SCOREBOARD'
               : (game?.status ?? 'CONNECTING').toUpperCase()}
         </span>
       </div>
@@ -440,45 +439,33 @@ function HostGame() {
         </div>
       )}
 
-      {game?.status === 'answerReview' && question && answerReveal && (
-        <div className="mt-8 rounded-3xl border border-emerald-300/15 bg-[#11172a] p-5 sm:p-7">
-          <span className="text-sm font-bold text-emerald-200">Question {question.index + 1} · Answer revealed</span>
-          <h2 className="mt-3 text-2xl font-bold leading-snug">{question.prompt}</h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {question.options.map((option, index) => (
-              <div className={`rounded-xl border p-4 text-sm ${index === answerReveal.correctIndex ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100' : 'border-white/[0.08] bg-[#0b1020] text-slate-300'}`} key={index}>
-                <span className="mr-3 font-bold opacity-60">{String.fromCharCode(65 + index)}</span>{option}
-                {index === answerReveal.correctIndex && <span className="ml-2 text-xs font-bold text-emerald-200">CORRECT</span>}
-              </div>
-            ))}
-          </div>
-          <p className="mt-5 text-sm text-slate-400">
-            {Object.keys(answers).length} of {participants.length} players answered. The host app calculated and published these scores.
-          </p>
-          {question.index + 1 < game.totalQuestions ? (
-            <button
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
-              disabled={working}
-              onClick={handleStartNextQuestion}
-              type="button"
-            >
-              {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
-              Next question
-            </button>
-          ) : (
-            <button
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
-              disabled={working}
-              onClick={() => void handleEndGame()}
-              type="button"
-            >
-              {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
-              End game
-            </button>
-          )}
-          <div className="mt-7">
-            <Leaderboard scores={scores} title="Live leaderboard" />
-          </div>
+      {game?.status === 'answerReview' && question && game.answerReveal && (
+        <div className="mt-8">
+          <QuestionScoreboard
+            action={question.index + 1 < game.totalQuestions ? (
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-violet-900 shadow-lg shadow-black/15 transition hover:bg-violet-50 disabled:opacity-50"
+                disabled={working}
+                onClick={handleStartNextQuestion}
+                type="button"
+              >
+                {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
+                Next question
+              </button>
+            ) : (
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-violet-900 shadow-lg shadow-black/15 transition hover:bg-violet-50 disabled:opacity-50"
+                disabled={working}
+                onClick={() => void handleEndGame()}
+                type="button"
+              >
+                {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
+                End game
+              </button>
+            )}
+            questionNumber={question.index + 1}
+            scores={scores}
+          />
         </div>
       )}
 
