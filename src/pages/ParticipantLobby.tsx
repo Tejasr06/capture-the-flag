@@ -24,7 +24,8 @@ function ParticipantLobby() {
     optionIndex: number
   } | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [serverTime, setServerTime] = useState(0)
+  const [serverTime, setServerTime] = useState(() => Date.now())
+  const [serverTimeReady, setServerTimeReady] = useState(false)
   const [scores, setScores] = useState<LiveScore[]>([])
   const gameStatus = game?.status
 
@@ -48,7 +49,14 @@ function ParticipantLobby() {
     )
   }, [pin, user])
 
-  useEffect(() => watchServerTime(setServerTime), [])
+  useEffect(
+    () =>
+      watchServerTime((time) => {
+        setServerTime(time)
+        setServerTimeReady(true)
+      }),
+    [],
+  )
 
   useEffect(() => {
     if (!pin || !user || (gameStatus !== 'ended' && gameStatus !== 'leaderboard')) return
@@ -83,6 +91,12 @@ function ParticipantLobby() {
         ),
       )
     : 0
+  const nextQuestionSecondsRemaining =
+    game?.countdownEndsAt !== undefined
+      ? serverTimeReady
+        ? Math.max(0, Math.ceil((game.countdownEndsAt - serverTime) / 1000))
+        : 5
+      : 0
 
   async function handleSubmitAnswer() {
     if (!pin || !user || selectedOption === null || submittedOption !== null) return
@@ -131,12 +145,16 @@ function ParticipantLobby() {
                 ? 'IN THE LOBBY'
                 : game?.status === 'answerReview'
                   ? 'ANSWER REVEALED'
+                  : game?.status === 'countdown'
+                    ? 'GET READY'
                   : (game?.status ?? 'CONNECTING').toUpperCase()}
             </span>
             <span className="text-xs font-semibold tracking-wider text-slate-400">PIN {pin}</span>
           </div>
           <h1 className="mt-6 text-3xl font-black tracking-tight sm:text-4xl">
-            {game?.status === 'question' && question
+            {game?.status === 'countdown'
+              ? 'Get ready for the next question'
+              : game?.status === 'question' && question
               ? `Question ${question.index + 1} of ${game.totalQuestions}`
               : game?.status === 'answerReview'
                 ? 'Answer revealed'
@@ -147,6 +165,21 @@ function ParticipantLobby() {
                     : 'Joining the lobby…'}
           </h1>
           <p className="mt-3 leading-7 text-slate-300">{game?.title ?? 'Connecting to the game'}</p>
+
+          {game?.status === 'countdown' && (
+            <section
+              aria-live="polite"
+              className="mt-8 flex flex-col items-center rounded-2xl border border-violet-300/20 bg-violet-300/[0.08] px-5 py-8 text-center"
+              role="status"
+            >
+              <span className="grid size-24 place-items-center rounded-3xl bg-violet-400/15 text-6xl font-black tabular-nums text-violet-100">
+                {nextQuestionSecondsRemaining}
+              </span>
+              <p className="mt-2 text-sm text-slate-300">
+                The next question starts in {nextQuestionSecondsRemaining} seconds.
+              </p>
+            </section>
+          )}
 
           {game?.status === 'question' && question && (
             <section aria-label={`Question ${question.index + 1}`} className="mt-7">

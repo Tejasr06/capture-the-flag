@@ -11,6 +11,7 @@ import {
   getLiveGameErrorMessage,
   publishQuestion,
   revealFinalLeaderboard,
+  startNextQuestionCountdown,
   watchLiveGame,
   watchLiveScores,
   watchServerTime,
@@ -23,13 +24,14 @@ function HostGame() {
   const [game, setGame] = useState<LiveGame | null>(null)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
-  const [serverTime, setServerTime] = useState(0)
+  const [serverTime, setServerTime] = useState(() => Date.now())
+  const [serverTimeReady, setServerTimeReady] = useState(false)
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [scores, setScores] = useState<LiveScore[]>([])
   const [working, setWorking] = useState(false)
-  const [nextQuestionCountdown, setNextQuestionCountdown] = useState<number | null>(null)
+  const [countdownRetry, setCountdownRetry] = useState(0)
   const closeStarted = useRef(false)
-  const nextQuestionTimer = useRef<number | null>(null)
+  const countdownStarted = useRef<string | null>(null)
 
   useEffect(() => {
     if (!pin || !user) return
@@ -51,7 +53,14 @@ function HostGame() {
     )
   }, [pin, user])
 
-  useEffect(() => watchServerTime(setServerTime), [])
+  useEffect(
+    () =>
+      watchServerTime((time) => {
+        setServerTime(time)
+        setServerTimeReady(true)
+      }),
+    [],
+  )
 
   useEffect(() => {
     if (!pin || !game || !user) return
@@ -89,15 +98,12 @@ function HostGame() {
   const secondsRemaining = question
     ? Math.max(0, Math.ceil((questionDeadline - serverTime) / 1000))
     : 0
-
-  useEffect(
-    () => () => {
-      if (nextQuestionTimer.current !== null) {
-        window.clearTimeout(nextQuestionTimer.current)
-      }
-    },
-    [],
-  )
+  const nextQuestionSecondsRemaining =
+    game?.countdownEndsAt !== undefined
+      ? serverTimeReady
+        ? Math.max(0, Math.ceil((game.countdownEndsAt - serverTime) / 1000))
+        : 5
+      : 0
 
   useEffect(() => {
     if (!game || !pin || !user || game.status !== 'question' || !question || secondsRemaining > 0) {
@@ -131,6 +137,32 @@ function HostGame() {
       })
   }, [game, pin, user])
 
+  useEffect(() => {
+    if (
+      !game ||
+      !pin ||
+      !user ||
+      game.status !== 'countdown' ||
+      !serverTimeReady ||
+      typeof game.nextQuestionIndex !== 'number' ||
+      game.countdownEndsAt === undefined ||
+      nextQuestionSecondsRemaining > 0
+    ) {
+      return
+    }
+
+    const attemptKey = `${pin}:${game.countdownEndsAt}`
+    if (countdownStarted.current === attemptKey) return
+    countdownStarted.current = attemptKey
+    setError('')
+    setWorking(true)
+    publishQuestion(pin, game.nextQuestionIndex)
+      .catch((actionError: unknown) =>
+        setError(`Starting the next question failed: ${getLiveGameErrorMessage(actionError)}`),
+      )
+      .finally(() => setWorking(false))
+  }, [countdownRetry, game, nextQuestionSecondsRemaining, pin, serverTimeReady, user])
+
   if (loading) return <Loading label="Checking your host account…" />
   if (!user) return <Navigate replace to="/host/login" />
   if (!pin || !/^\d{6}$/.test(pin)) return <Navigate replace to="/host/dashboard" />
@@ -159,32 +191,22 @@ function HostGame() {
     }
   }
 
-  function handleStartNextQuestion() {
+  async function handleStartNextQuestion() {
     if (!pin || !user || !question) return
-    const gamePin = pin
-    const nextQuestionIndex = question.index + 1
     setError('')
     setWorking(true)
-    setNextQuestionCountdown(5)
-
-    let secondsRemaining = 5
-    function tick() {
-      secondsRemaining -= 1
-      if (secondsRemaining === 0) {
-        nextQuestionTimer.current = null
-        setNextQuestionCountdown(null)
-        publishQuestion(gamePin, nextQuestionIndex)
-          .catch((actionError: unknown) =>
-            setError(`Starting the next question failed: ${getLiveGameErrorMessage(actionError)}`),
-          )
-          .finally(() => setWorking(false))
-        return
-      }
-      setNextQuestionCountdown(secondsRemaining)
-      nextQuestionTimer.current = window.setTimeout(tick, 1000)
+    try {
+      await startNextQuestionCountdown(pin, user.uid)
+    } catch (actionError) {
+      setError(`Starting the next-question countdown failed: ${getLiveGameErrorMessage(actionError)}`)
+    } finally {
+      setWorking(false)
     }
+  }
 
-    nextQuestionTimer.current = window.setTimeout(tick, 1000)
+  function handleRetryStartingQuestion() {
+    countdownStarted.current = null
+    setCountdownRetry((retry) => retry + 1)
   }
 
   async function handleCloseQuestion() {
@@ -434,33 +456,15 @@ function HostGame() {
             {Object.keys(answers).length} of {participants.length} players answered. The host app calculated and published these scores.
           </p>
           {question.index + 1 < game.totalQuestions ? (
-            nextQuestionCountdown !== null ? (
-              <div
-                aria-live="polite"
-                className="mt-6 flex items-center gap-4 rounded-2xl border border-violet-300/20 bg-violet-300/[0.08] p-5"
-                role="status"
-              >
-                <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-violet-400/15 text-3xl font-black tabular-nums text-violet-100">
-                  {nextQuestionCountdown}
-                </span>
-                <div>
-                  <p className="font-bold text-white">Get ready for the next question</p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    Starting in {nextQuestionCountdown}…
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <button
-                className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
-                disabled={working}
-                onClick={handleStartNextQuestion}
-                type="button"
-              >
-                {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
-                Next question
-              </button>
-            )
+            <button
+              className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
+              disabled={working}
+              onClick={handleStartNextQuestion}
+              type="button"
+            >
+              {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
+              Next question
+            </button>
           ) : (
             <button
               className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
@@ -475,6 +479,31 @@ function HostGame() {
           <div className="mt-7">
             <Leaderboard scores={scores} title="Live leaderboard" />
           </div>
+        </div>
+      )}
+
+      {game?.status === 'countdown' && (
+        <div
+          aria-live="polite"
+          className="mt-8 flex flex-col items-center rounded-3xl border border-violet-300/20 bg-violet-300/[0.08] p-6 text-center"
+          role="status"
+        >
+          <span className="inline-flex items-center gap-3 text-sm font-semibold text-violet-100">
+            <LoaderCircle aria-hidden="true" className="animate-spin" size={18} />
+            {nextQuestionSecondsRemaining > 0
+              ? 'The countdown is running for participants.'
+              : 'Starting the next question…'}
+          </span>
+          {nextQuestionSecondsRemaining === 0 && error && (
+            <button
+              className="mt-5 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/5"
+              disabled={working}
+              onClick={handleRetryStartingQuestion}
+              type="button"
+            >
+              Retry starting question
+            </button>
+          )}
         </div>
       )}
 

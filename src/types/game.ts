@@ -11,13 +11,15 @@ export interface LiveGame {
   hostUid: string
   quizId: string
   title: string
-  status: 'lobby' | 'question' | 'answerReview' | 'leaderboard' | 'ended'
+  status: 'lobby' | 'question' | 'answerReview' | 'countdown' | 'leaderboard' | 'ended'
   lateJoining: boolean
   createdAt: number
   totalQuestions: number
   participants: Record<string, LiveParticipant>
   currentQuestion?: LiveQuestion | null
   answerReveal?: { correctIndex: number } | null
+  nextQuestionIndex?: number
+  countdownEndsAt?: number
   resultId?: string
 }
 

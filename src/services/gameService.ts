@@ -39,7 +39,7 @@ function parseGame(pin: string, value: unknown): LiveGame {
     typeof value.hostUid !== 'string' ||
     typeof value.quizId !== 'string' ||
     typeof value.title !== 'string' ||
-    !['lobby', 'question', 'answerReview', 'leaderboard', 'ended'].includes(String(value.status)) ||
+    !['lobby', 'question', 'answerReview', 'countdown', 'leaderboard', 'ended'].includes(String(value.status)) ||
     typeof value.lateJoining !== 'boolean' ||
     typeof value.createdAt !== 'number' ||
     typeof value.totalQuestions !== 'number'
@@ -98,6 +98,24 @@ function parseGame(pin: string, value: unknown): LiveGame {
     answerReveal = { correctIndex: value.answerReveal.correctIndex }
   }
 
+  const nextQuestionIndex =
+    typeof value.nextQuestionIndex === 'number' && Number.isInteger(value.nextQuestionIndex)
+      ? value.nextQuestionIndex
+      : undefined
+  const countdownEndsAt =
+    typeof value.countdownEndsAt === 'number' && Number.isFinite(value.countdownEndsAt)
+      ? value.countdownEndsAt
+      : undefined
+  if (
+    value.status === 'countdown' &&
+    (nextQuestionIndex === undefined ||
+      nextQuestionIndex < 0 ||
+      nextQuestionIndex >= value.totalQuestions ||
+      countdownEndsAt === undefined)
+  ) {
+    throw new Error('The next-question countdown data is incomplete or invalid.')
+  }
+
   return {
     pin,
     hostUid: value.hostUid,
@@ -110,6 +128,8 @@ function parseGame(pin: string, value: unknown): LiveGame {
     participants,
     currentQuestion,
     answerReveal,
+    nextQuestionIndex,
+    countdownEndsAt,
     resultId: typeof value.resultId === 'string' ? value.resultId : undefined,
   }
 }
@@ -336,13 +356,25 @@ export async function publishQuestion(
     throw new Error('You are not the host of this game.')
   }
   const status = gameSnapshot.child('status').val()
-  const currentQuestionIndex = gameSnapshot.child('currentQuestion/index').val()
   if (
     (status === 'lobby' && questionIndex !== 0) ||
-    (status === 'answerReview' && questionIndex !== currentQuestionIndex + 1) ||
-    (status !== 'lobby' && status !== 'answerReview')
+    (status === 'countdown' &&
+      questionIndex !== gameSnapshot.child('nextQuestionIndex').val()) ||
+    (status !== 'lobby' && status !== 'countdown')
   ) {
     throw new Error('The game is not ready to start that question.')
+  }
+  if (status === 'countdown') {
+    const countdownEndsAt: unknown = gameSnapshot.child('countdownEndsAt').val()
+    if (typeof countdownEndsAt !== 'number' || !Number.isFinite(countdownEndsAt)) {
+      throw new Error('The next-question countdown deadline is invalid.')
+    }
+    const serverOffset = await getServerTimeOffset(database).catch((error: unknown) => {
+      throw new Error(`Could not read server time: ${formatRealtimeError(error)}`)
+    })
+    if (Date.now() + serverOffset < countdownEndsAt) {
+      throw new Error('Wait for the five-second countdown before starting the question.')
+    }
   }
 
   const quiz = await getQuiz(String(gameSnapshot.child('quizId').val()))
@@ -365,10 +397,61 @@ export async function publishQuestion(
   if (gameSnapshot.child('answerReveal').exists()) {
     updates[`liveGames/${pin}/answerReveal`] = null
   }
+  if (gameSnapshot.child('nextQuestionIndex').exists()) {
+    updates[`liveGames/${pin}/nextQuestionIndex`] = null
+  }
+  if (gameSnapshot.child('countdownEndsAt').exists()) {
+    updates[`liveGames/${pin}/countdownEndsAt`] = null
+  }
   for (const uid of Object.keys(gameSnapshot.child('participants').val() ?? {})) {
     updates[`gameAnswers/${pin}/${uid}`] = null
   }
   await update(ref(database), updates)
+}
+
+export async function startNextQuestionCountdown(
+  pin: string,
+  hostUid: string,
+): Promise<void> {
+  const host = getConfiguredAuth().currentUser
+  if (!host || host.uid !== hostUid || host.isAnonymous) {
+    throw new Error('Your host session expired. Sign in again before starting the next question.')
+  }
+
+  const database = await getRealtimeDatabase()
+  const gameReference = ref(database, `liveGames/${pin}`)
+  const gameSnapshot = await get(gameReference)
+  if (!gameSnapshot.exists() || gameSnapshot.child('hostUid').val() !== hostUid) {
+    throw new Error('You are not the host of this game.')
+  }
+  const currentQuestionIndex: unknown = gameSnapshot.child('currentQuestion/index').val()
+  const totalQuestions: unknown = gameSnapshot.child('totalQuestions').val()
+  if (
+    gameSnapshot.child('status').val() !== 'answerReview' ||
+    !gameSnapshot.child('answerReveal').exists() ||
+    typeof currentQuestionIndex !== 'number' ||
+    !Number.isInteger(currentQuestionIndex) ||
+    typeof totalQuestions !== 'number' ||
+    currentQuestionIndex + 1 >= totalQuestions
+  ) {
+    throw new Error('The game is not ready to start another question.')
+  }
+
+  const serverOffset = await getServerTimeOffset(database).catch((error: unknown) => {
+    throw new Error(`Could not read server time: ${formatRealtimeError(error)}`)
+  })
+  const nextQuestionIndex = currentQuestionIndex + 1
+  const countdownEndsAt = Date.now() + serverOffset + 5000
+  try {
+    await update(ref(database), {
+      [`liveGames/${pin}/status`]: 'countdown',
+      [`liveGames/${pin}/nextQuestionIndex`]: nextQuestionIndex,
+      [`liveGames/${pin}/countdownEndsAt`]: countdownEndsAt,
+      [`gameStatus/${pin}/status`]: 'countdown',
+    })
+  } catch (error) {
+    throw new Error(`Could not start the next-question countdown: ${formatRealtimeError(error)}`)
+  }
 }
 
 export async function submitAnswer(
