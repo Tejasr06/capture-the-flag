@@ -128,13 +128,14 @@ function ParticipantLobby() {
         : 5
       : 0
 
-  async function handleSubmitAnswer() {
-    if (!pin || !user || selectedOption === null || submittedOption !== null) return
+  async function handleSubmitAnswer(optionIndex: number) {
+    if (!pin || !user || !question || submittedOption !== null || submitting || secondsRemaining === 0) return
+    setSelection({ questionIndex: question.index, optionIndex })
     setError('')
     setSubmitting(true)
     try {
-      await submitAnswer(pin, user.uid, selectedOption)
-      setSubmittedOption(selectedOption)
+      await submitAnswer(pin, user.uid, optionIndex)
+      setSubmittedOption(optionIndex)
     } catch (submitError) {
       setError(getLiveGameErrorMessage(submitError))
     } finally {
@@ -388,7 +389,7 @@ function ParticipantLobby() {
                       } disabled:cursor-not-allowed disabled:opacity-70`}
                       disabled={submittedOption !== null || secondsRemaining === 0 || submitting}
                       key={index}
-                      onClick={() => setSelection({ questionIndex: question.index, optionIndex: index })}
+                      onClick={() => void handleSubmitAnswer(index)}
                       type="button"
                     >
                       <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.07] text-xs font-bold">
@@ -400,20 +401,16 @@ function ParticipantLobby() {
                   )
                 })}
               </div>
-              {submittedOption !== null ? (
+              {submitting && (
+                <p className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-200" role="status">
+                  <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />
+                  Submitting your answer…
+                </p>
+              )}
+              {submittedOption !== null && !submitting && (
                 <p className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.08] p-4 text-sm font-semibold text-emerald-100" role="status">
                   Answer submitted. You can’t change it. Wait for the host to close the question.
                 </p>
-              ) : (
-                <button
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={selectedOption === null || secondsRemaining === 0 || submitting}
-                  onClick={() => void handleSubmitAnswer()}
-                  type="button"
-                >
-                  {submitting && <LoaderCircle aria-hidden="true" className="animate-spin" size={17} />}
-                  {submitting ? 'Submitting…' : secondsRemaining === 0 ? 'Time is up' : 'Submit answer'}
-                </button>
               )}
             </section>
           )}

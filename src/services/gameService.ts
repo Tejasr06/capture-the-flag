@@ -282,9 +282,7 @@ export async function joinLiveGame(pin: string, nickname: string): Promise<strin
   if (!statusSnapshot.exists()) {
     throw new Error('That Game PIN was not found. Check the six digits and try again.')
   }
-  if (statusSnapshot.val() !== 'lobby') {
-    throw new Error('This game has already started or ended and is not accepting players.')
-  }
+  const gameStatus: unknown = statusSnapshot.val()
 
   const participantReference = ref(database, `liveGames/${pin}/participants/${user.uid}`)
   const participantSnapshot = await get(participantReference).catch((error: unknown) => {
@@ -297,12 +295,19 @@ export async function joinLiveGame(pin: string, nickname: string): Promise<strin
     if (existing.nicknameKey !== nicknameKey) {
       throw new Error(`This browser has already joined as "${existing.nickname ?? 'another nickname'}". Use that nickname or join from another device.`)
     }
+    if (!['lobby', 'question', 'answerReview', 'countdown'].includes(String(gameStatus))) {
+      throw new Error('This game has ended. You can no longer rejoin it.')
+    }
     const avatarId = isParticipantAvatarId(existing.avatarId)
       ? existing.avatarId
       : getRandomParticipantAvatarId()
     await update(participantReference, { connected: true, avatarId })
     await onDisconnect(participantReference).update({ connected: false })
     return user.uid
+  }
+
+  if (gameStatus !== 'lobby') {
+    throw new Error('This game has already started. Only players who joined before it started can rejoin.')
   }
 
   const claimReference = ref(database, `liveGames/${pin}/nicknames/${nicknameKey}`)
