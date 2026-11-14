@@ -1,9 +1,12 @@
+import type { ParticipantAvatarId } from '../utils/participantAvatars'
+
 export interface LiveParticipant {
   uid: string
   nickname: string
   nicknameKey: string
   joinedAt: number
   connected: boolean
+  avatarId?: ParticipantAvatarId
 }
 
 export interface LiveGame {
@@ -35,6 +38,7 @@ export interface LiveQuestion {
 export interface LiveScore {
   uid: string
   nickname: string
+  avatarId?: ParticipantAvatarId
   totalPoints: number
   lastQuestionPoints: number
   questionScores: Record<string, number>

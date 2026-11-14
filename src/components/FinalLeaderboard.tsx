@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Crown, Flag, Medal } from 'lucide-react'
+import { Flag } from 'lucide-react'
+import ParticipantAvatar from './ParticipantAvatar'
 import type { LiveScore } from '../types/game'
 import { rankLiveScores } from '../utils/leaderboard'
 
@@ -58,18 +59,15 @@ function FinalLeaderboard({ scores, currentUid, error, footer }: FinalLeaderboar
                   rank === 1
                     ? {
                       order: 'order-1 sm:order-2',
-                        medal: 'border-amber-200/50 bg-amber-300/20 text-amber-100',
                         card: 'border-amber-200/25 bg-violet-950/45',
                       }
                     : rank === 2
                       ? {
                         order: 'order-2 sm:order-1',
-                          medal: 'border-slate-100/40 bg-slate-100/15 text-slate-100',
                           card: 'border-white/10 bg-violet-950/30',
                         }
                       : {
                         order: 'order-3 sm:order-3',
-                          medal: 'border-orange-200/40 bg-orange-300/15 text-orange-100',
                           card: 'border-white/10 bg-violet-950/30',
                         }
 
@@ -83,8 +81,8 @@ function FinalLeaderboard({ scores, currentUid, error, footer }: FinalLeaderboar
                     key={score.uid}
                     transition={{ delay: (rank - 1) * 0.15, duration: 0.45, type: 'spring' }}
                   >
-                    <span className={`relative grid size-14 shrink-0 place-items-center rounded-full border-2 ${styles.medal}`}>
-                      {rank === 1 ? <Crown aria-hidden="true" size={25} /> : <Medal aria-hidden="true" size={25} />}
+                    <span className="relative shrink-0">
+                      <ParticipantAvatar avatarId={score.avatarId} size="lg" uid={score.uid} />
                       <span className="absolute -bottom-2 grid size-6 place-items-center rounded-full border border-white/40 bg-[#431782] text-xs font-black text-white">
                         {rank}
                       </span>
@@ -116,6 +114,7 @@ function FinalLeaderboard({ scores, currentUid, error, footer }: FinalLeaderboar
                     transition={{ delay: 0.45 + index * 0.06, duration: 0.3 }}
                   >
                     <span className="w-8 shrink-0 tabular-nums">{index + 4}.</span>
+                    <ParticipantAvatar avatarId={score.avatarId} size="sm" uid={score.uid} />
                     <span className="min-w-0 flex-1 truncate">
                       {score.nickname}
                       {score.uid === currentUid && <span className="ml-2 text-xs text-violet-200">(You)</span>}

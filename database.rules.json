@@ -91,6 +91,9 @@
             "joinedAt": {
               ".validate": "newData.isNumber()"
             },
+            "avatarId": {
+              ".validate": "newData.isString() && newData.val().matches(/^(fox|panda|frog|monkey|cat|penguin|unicorn|tiger|rabbit|octopus|bear|lion)$/) && (!data.exists() || newData.val() === data.val())"
+            },
             "connected": {
               ".validate": "newData.isBoolean()"
             },
@@ -158,6 +161,9 @@
         "$uid": {
           ".write": "auth != null && auth.uid === root.child('liveGames').child($pin).child('hostUid').val() && root.child('liveGames').child($pin).child('participants').child($uid).exists()",
           ".validate": "newData.hasChildren(['uid', 'nickname', 'totalPoints', 'lastQuestionPoints', 'questionScores']) && newData.child('uid').val() === $uid && newData.child('nickname').isString() && newData.child('totalPoints').isNumber() && newData.child('totalPoints').val() >= 0 && newData.child('lastQuestionPoints').isNumber() && newData.child('lastQuestionPoints').val() >= 0 && newData.child('questionScores').hasChildren()",
+          "avatarId": {
+            ".validate": "newData.isString() && newData.val().matches(/^(fox|panda|frog|monkey|cat|penguin|unicorn|tiger|rabbit|octopus|bear|lion)$/) && (!data.exists() || newData.val() === data.val())"
+          },
           "questionScores": {
             "$questionIndex": {
               ".validate": "$questionIndex.matches(/^[0-9]+$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 5000"

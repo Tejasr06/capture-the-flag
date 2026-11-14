@@ -1,3 +1,8 @@
+import {
+  getRandomParticipantAvatarId,
+  isParticipantAvatarId,
+  resolveParticipantAvatarId,
+} from '../utils/participantAvatars'
 import { signInAnonymously } from 'firebase/auth'
 import {
   get,
@@ -64,6 +69,9 @@ function parseGame(pin: string, value: unknown): LiveGame {
           nicknameKey: participant.nicknameKey,
           joinedAt: participant.joinedAt,
           connected: participant.connected,
+          ...(isParticipantAvatarId(participant.avatarId)
+            ? { avatarId: participant.avatarId }
+            : {}),
         }
       }
     }
@@ -289,7 +297,10 @@ export async function joinLiveGame(pin: string, nickname: string): Promise<strin
     if (existing.nicknameKey !== nicknameKey) {
       throw new Error(`This browser has already joined as "${existing.nickname ?? 'another nickname'}". Use that nickname or join from another device.`)
     }
-    await update(participantReference, { connected: true })
+    const avatarId = isParticipantAvatarId(existing.avatarId)
+      ? existing.avatarId
+      : getRandomParticipantAvatarId()
+    await update(participantReference, { connected: true, avatarId })
     await onDisconnect(participantReference).update({ connected: false })
     return user.uid
   }
@@ -314,6 +325,7 @@ export async function joinLiveGame(pin: string, nickname: string): Promise<strin
       nicknameKey,
       joinedAt: serverTimestamp(),
       connected: true,
+      avatarId: getRandomParticipantAvatarId(),
     })
     participantCreated = true
     await onDisconnect(participantReference).update({ connected: false })
@@ -574,9 +586,14 @@ export async function closeQuestion(pin: string, hostUid: string): Promise<void>
     const storedQuestionPoints: unknown = previousQuestions[String(questionIndex)]
     const priorQuestionPoints = typeof storedQuestionPoints === 'number' ? storedQuestionPoints : 0
     const nickname = gameSnapshot.child(`participants/${uid}/nickname`).val()
+    const avatarId = resolveParticipantAvatarId(
+      uid,
+      gameSnapshot.child(`participants/${uid}/avatarId`).val(),
+    )
     updates[`liveScores/${pin}/${uid}`] = {
       uid,
       nickname,
+      avatarId,
       totalPoints: Math.max(0, Number(previous.totalPoints) || 0) + points - priorQuestionPoints,
       lastQuestionPoints: points,
       questionScores: { ...previousQuestions, [questionIndex]: points },
@@ -777,6 +794,7 @@ export function watchLiveScores(
               isRecord(score) &&
               typeof score.uid === 'string' &&
               typeof score.nickname === 'string' &&
+              (score.avatarId === undefined || isParticipantAvatarId(score.avatarId)) &&
               typeof score.totalPoints === 'number' &&
               typeof score.lastQuestionPoints === 'number' &&
               isRecord(score.questionScores) &&

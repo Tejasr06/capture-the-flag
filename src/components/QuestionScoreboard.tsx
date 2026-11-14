@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
-import { ArrowDown, ArrowUp, Crown, Minus, Trophy } from 'lucide-react'
+import { ArrowDown, ArrowUp, Minus, Trophy } from 'lucide-react'
+import ParticipantAvatar from './ParticipantAvatar'
 import { rankLiveScores } from '../utils/leaderboard'
 import type { LiveScore } from '../types/game'
 
@@ -95,14 +96,11 @@ function QuestionScoreboard({ questionNumber, scores, action }: QuestionScoreboa
                 >
                   {rank}
                 </span>
-                <span
-                  aria-hidden="true"
-                  className={`grid size-10 shrink-0 place-items-center rounded-xl text-lg font-black uppercase sm:size-12 ${
-                    isLeader ? 'bg-amber-100 text-amber-800' : 'bg-white/10 text-violet-100'
-                  }`}
-                >
-                  {isLeader ? <Crown size={21} /> : score.nickname.slice(0, 1)}
-                </span>
+                <ParticipantAvatar
+                  avatarId={score.avatarId}
+                  size="md"
+                  uid={score.uid}
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-base font-bold sm:text-lg">{score.nickname}</span>
                   <span

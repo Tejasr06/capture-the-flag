@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Users, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Users, Wifi } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import FinalLeaderboard from '../components/FinalLeaderboard'
+import ParticipantAvatar from '../components/ParticipantAvatar'
 import QuestionScoreboard from '../components/QuestionScoreboard'
 import { useAuth } from '../hooks/useAuth'
 import type { LiveGame, LiveScore } from '../types/game'
@@ -91,6 +92,10 @@ function HostGame() {
   const participants = useMemo(
     () => Object.values(game?.participants ?? {}).sort((a, b) => a.joinedAt - b.joinedAt),
     [game?.participants],
+  )
+  const connectedParticipants = useMemo(
+    () => participants.filter((participant) => participant.connected),
+    [participants],
   )
   const question = game?.currentQuestion
   const questionDeadline = question ? question.startedAt + question.timeLimit * 1000 : 0
@@ -336,7 +341,7 @@ function HostGame() {
             </div>
             <span className="inline-flex items-center gap-2 rounded-full bg-blue-400/10 px-3 py-1.5 text-sm font-bold text-blue-200">
               <Users aria-hidden="true" size={15} />
-              {participants.length}
+              {connectedParticipants.length} joined
             </span>
           </div>
           {!game ? (
@@ -346,30 +351,32 @@ function HostGame() {
                 Connecting to the lobby…
               </span>
             </div>
-          ) : participants.length === 0 ? (
+          ) : connectedParticipants.length === 0 ? (
             <div className="grid min-h-44 place-items-center text-center">
               <div>
                 <span className="mx-auto grid size-11 place-items-center rounded-xl bg-white/[0.06] text-slate-400">
                   <Users aria-hidden="true" size={20} />
                 </span>
-                <p className="mt-3 text-sm font-semibold text-slate-200">Waiting for the first player</p>
-                <p className="mt-1 text-xs text-slate-500">Share the PIN to invite your group.</p>
+                <p className="mt-3 text-sm font-semibold text-slate-200">Waiting for players to join</p>
+                <p className="mt-1 text-xs text-slate-500">Connected players will appear here.</p>
               </div>
             </div>
           ) : (
-            <ul className="mt-2 max-h-80 divide-y divide-white/[0.06] overflow-y-auto">
-              {participants.map((participant, index) => (
-                <li className="flex items-center gap-3 py-3" key={participant.uid}>
-                  <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-violet-400/20 to-blue-400/10 text-sm font-bold text-violet-100">
-                    {participant.nickname.slice(0, 1).toUpperCase()}
+            <ul className="mt-5 grid max-h-96 grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
+              {connectedParticipants.map((participant) => (
+                <li
+                  className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.08] to-white/[0.03] p-3"
+                  key={participant.uid}
+                >
+                  <ParticipantAvatar
+                    avatarId={participant.avatarId}
+                    size="lg"
+                    uid={participant.uid}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
+                    {participant.nickname}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{participant.nickname}</span>
-                  <span className="text-xs text-slate-500">#{index + 1}</span>
-                  {participant.connected ? (
-                    <Wifi aria-label="Connected" className="text-emerald-300" size={15} />
-                  ) : (
-                    <WifiOff aria-label="Disconnected" className="text-slate-500" size={15} />
-                  )}
+                  <Wifi aria-label="Connected" className="shrink-0 text-emerald-300" size={15} />
                 </li>
               ))}
             </ul>
@@ -377,20 +384,20 @@ function HostGame() {
         </div>
           <div className="flex flex-col justify-center rounded-3xl border border-white/10 bg-[#11172a] p-6">
             <p className="text-sm leading-6 text-slate-300">
-              {participants.length === 0
+              {connectedParticipants.length === 0
                 ? 'Share the Game PIN, then start when your group is ready.'
-                : `${participants.length} ${participants.length === 1 ? 'player is' : 'players are'} in the lobby.`}
+                : `${connectedParticipants.length} ${connectedParticipants.length === 1 ? 'player is' : 'players are'} connected.`}
             </p>
             <button
               className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!game || working || participants.length === 0}
+              disabled={!game || working || connectedParticipants.length === 0}
               onClick={() => void handleStartQuestion(0)}
               type="button"
             >
               {working ? <LoaderCircle aria-hidden="true" className="animate-spin" size={17} /> : <Radio aria-hidden="true" size={17} />}
               Start Question 1
             </button>
-            {participants.length === 0 && (
+            {connectedParticipants.length === 0 && (
               <p className="mt-3 text-xs text-slate-500">At least one player must join first.</p>
             )}
           </div>

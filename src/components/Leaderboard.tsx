@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Crown, Medal, Trophy } from 'lucide-react'
+import ParticipantAvatar from './ParticipantAvatar'
 import { rankLiveScores } from '../utils/leaderboard'
 import type { LiveScore } from '../types/game'
 
@@ -64,6 +65,7 @@ function Leaderboard({
                   ) : (
                     <Medal aria-hidden="true" className="mb-2 opacity-80" size={21} />
                   )}
+                  <ParticipantAvatar avatarId={score.avatarId} size="sm" uid={score.uid} />
                   <span className="text-2xl font-black sm:text-3xl">#{rank}</span>
                   <span className="mt-2 w-full truncate text-xs font-bold sm:text-sm">
                     {score.nickname}
@@ -119,6 +121,7 @@ function Leaderboard({
               }`}>
                 {index + 1}
               </span>
+              <ParticipantAvatar avatarId={score.avatarId} size="sm" uid={score.uid} />
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                 {score.nickname}
                 {score.uid === currentUid && <span className="ml-2 text-xs text-violet-300">You</span>}
