@@ -2,11 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Users, Wifi } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
+import AnswerDistribution from '../components/AnswerDistribution'
 import FinalLeaderboard from '../components/FinalLeaderboard'
 import ParticipantAvatar from '../components/ParticipantAvatar'
 import QuestionScoreboard from '../components/QuestionScoreboard'
 import { useAuth } from '../hooks/useAuth'
-import { QUESTION_READING_DURATION_MS } from '../utils/gameTiming'
+import {
+  ANSWER_DISTRIBUTION_DURATION_MS,
+  QUESTION_READING_DURATION_MS,
+} from '../utils/gameTiming'
 import type { LiveGame, LiveScore } from '../types/game'
 import {
   closeQuestion,
@@ -33,6 +37,7 @@ function HostGame() {
   const [scores, setScores] = useState<LiveScore[]>([])
   const [working, setWorking] = useState(false)
   const [countdownRetry, setCountdownRetry] = useState(0)
+  const [dismissedAnswerDistributionKey, setDismissedAnswerDistributionKey] = useState<string | null>(null)
   const closeStarted = useRef(false)
   const countdownStarted = useRef<string | null>(null)
 
@@ -100,6 +105,20 @@ function HostGame() {
     [participants],
   )
   const question = game?.currentQuestion
+  const answerReviewKey =
+    game?.status === 'answerReview' && game.answerReveal && question && pin
+      ? `${pin}:${question.index}:${question.startedAt}`
+      : null
+  useEffect(() => {
+    if (!answerReviewKey) return
+    const timeout = window.setTimeout(
+      () => setDismissedAnswerDistributionKey(answerReviewKey),
+      ANSWER_DISTRIBUTION_DURATION_MS,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [answerReviewKey])
+  const showAnswerDistribution =
+    answerReviewKey !== null && dismissedAnswerDistributionKey !== answerReviewKey
   const questionAnswerStartsAt = question
     ? question.startedAt + QUESTION_READING_DURATION_MS
     : 0
@@ -491,31 +510,40 @@ function HostGame() {
 
       {game?.status === 'answerReview' && question && game.answerReveal && (
         <div className="mt-8">
-          <QuestionScoreboard
-            action={question.index + 1 < game.totalQuestions ? (
-              <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-violet-900 shadow-lg shadow-black/15 transition hover:bg-violet-50 disabled:opacity-50"
-                disabled={working}
-                onClick={handleStartNextQuestion}
-                type="button"
-              >
-                {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
-                Next question
-              </button>
-            ) : (
-              <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-violet-900 shadow-lg shadow-black/15 transition hover:bg-violet-50 disabled:opacity-50"
-                disabled={working}
-                onClick={() => void handleEndGame()}
-                type="button"
-              >
-                {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
-                End game
-              </button>
-            )}
-            questionNumber={question.index + 1}
-            scores={scores}
-          />
+          {showAnswerDistribution ? (
+            <AnswerDistribution
+              answers={answers}
+              correctIndex={game.answerReveal.correctIndex}
+              question={question}
+              questionNumber={question.index + 1}
+            />
+          ) : (
+            <QuestionScoreboard
+              action={question.index + 1 < game.totalQuestions ? (
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-violet-900 shadow-lg shadow-black/15 transition hover:bg-violet-50 disabled:opacity-50"
+                  disabled={working}
+                  onClick={handleStartNextQuestion}
+                  type="button"
+                >
+                  {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
+                  Next question
+                </button>
+              ) : (
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-violet-900 shadow-lg shadow-black/15 transition hover:bg-violet-50 disabled:opacity-50"
+                  disabled={working}
+                  onClick={() => void handleEndGame()}
+                  type="button"
+                >
+                  {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
+                  End game
+                </button>
+              )}
+              questionNumber={question.index + 1}
+              scores={scores}
+            />
+          )}
         </div>
       )}
 
