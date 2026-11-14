@@ -1,11 +1,12 @@
 import { LogOut, LoaderCircle } from 'lucide-react'
-import { Link, Navigate, Outlet } from 'react-router-dom'
+import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { getAuthErrorMessage, logoutHost } from '../services/authService'
 
 function HostPageLayout() {
   const { user, loading } = useAuth()
+  const { pathname } = useLocation()
   const [error, setError] = useState('')
   const [signingOut, setSigningOut] = useState(false)
 
@@ -22,6 +23,10 @@ function HostPageLayout() {
 
   if (!user) {
     return <Navigate replace to="/host/login" />
+  }
+
+  if (pathname.startsWith('/host/games/')) {
+    return <Outlet />
   }
 
   async function handleSignOut() {

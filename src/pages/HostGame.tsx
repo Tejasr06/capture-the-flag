@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Users, Wifi } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import FinalLeaderboard from '../components/FinalLeaderboard'
@@ -271,8 +272,127 @@ function HostGame() {
     )
   }
 
+  if (game?.status === 'lobby') {
+    return (
+      <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-gradient-to-b from-[#dce8f7] via-[#eaf4fc] to-[#f8fcff] px-4 py-5 text-slate-900 sm:px-8 sm:py-7">
+        <div className="pointer-events-none absolute -left-36 top-20 size-96 rounded-full bg-white/80 blur-3xl" />
+        <div className="pointer-events-none absolute -right-36 top-1/4 size-[30rem] rounded-full bg-sky-300/30 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-48 left-1/3 size-[34rem] rounded-full bg-emerald-200/30 blur-3xl" />
+
+        <div className="relative mx-auto flex min-h-[calc(100svh-3.5rem)] w-full max-w-7xl flex-col">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <Link
+              className="inline-flex items-center gap-2 rounded-xl border border-white/80 bg-white/60 px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-white"
+              to="/host/dashboard"
+            >
+              <ArrowLeft aria-hidden="true" size={16} />
+              Dashboard
+            </Link>
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-900/20 transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={working || connectedParticipants.length === 0}
+              onClick={() => void handleStartQuestion(0)}
+              type="button"
+            >
+              {working ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" size={17} />
+              ) : (
+                <Radio aria-hidden="true" size={17} />
+              )}
+              Start Question 1
+            </button>
+          </header>
+
+          {error && (
+            <div className="mt-5 rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+              {error}
+            </div>
+          )}
+
+          <section className="mx-auto mt-4 grid w-full max-w-4xl gap-4 rounded-2xl border border-white bg-white/95 p-4 shadow-xl shadow-slate-700/10 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:px-7 sm:py-5">
+            <div className="text-center sm:text-left">
+              <p className="text-xs font-bold tracking-wide text-slate-500">Join at</p>
+              <p className="mt-1 break-all text-sm font-black text-slate-800">{window.location.host}/join</p>
+              <p className="mt-1 text-xs text-slate-500">Enter this PIN to play</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs font-black tracking-[0.2em] text-slate-500 uppercase">Game PIN</p>
+              <p aria-label={`Game PIN ${pin}`} className="mt-1 text-4xl font-black tracking-[0.16em] text-slate-900 sm:text-5xl">
+                {pin}
+              </p>
+            </div>
+            <div className="flex justify-center sm:justify-end">
+              <button
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                onClick={() => void copyJoinDetails()}
+                type="button"
+              >
+                {copied ? <Check aria-hidden="true" size={16} /> : <Copy aria-hidden="true" size={16} />}
+                {copied ? 'Copied' : 'Copy join details'}
+              </button>
+            </div>
+          </section>
+
+          <section className="mt-7 text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-violet-900 px-4 py-2 text-sm font-black text-white shadow-lg shadow-violet-900/15">
+              <Radio aria-hidden="true" size={16} />
+              Capture the Flag!
+            </span>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{game.title}</h1>
+            <p className="mt-2 text-sm font-medium text-slate-600">
+              Players will appear here as they join
+            </p>
+          </section>
+
+          {connectedParticipants.length === 0 ? (
+            <div className="mx-auto mt-8 grid min-h-48 w-full max-w-4xl flex-1 place-items-center rounded-3xl border-2 border-dashed border-sky-200 bg-white/50 text-center">
+              <div>
+                <Users aria-hidden="true" className="mx-auto text-slate-400" size={30} />
+                <p className="mt-3 text-lg font-bold text-slate-700">Waiting for players to join</p>
+                <p className="mt-1 text-sm text-slate-500">Share the PIN to invite your group.</p>
+              </div>
+            </div>
+          ) : (
+            <ul aria-label="Connected players" className="mx-auto mt-7 grid w-full max-w-6xl flex-1 content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {connectedParticipants.map((participant, index) => (
+                <motion.li
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex min-w-0 items-center gap-3 rounded-xl border border-white/90 bg-white/90 p-3 shadow-md shadow-slate-700/10 sm:min-h-24"
+                  initial={{ opacity: 0, y: 12 }}
+                  key={participant.uid}
+                  layout
+                  transition={{ delay: index * 0.04, duration: 0.3 }}
+                >
+                  <ParticipantAvatar
+                    avatarId={participant.avatarId}
+                    size="lg"
+                    uid={participant.uid}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-base font-black text-slate-800">
+                    {participant.nickname}
+                  </span>
+                  <Wifi aria-label="Connected" className="shrink-0 text-emerald-600" size={16} />
+                </motion.li>
+              ))}
+            </ul>
+          )}
+
+          <footer className="mt-7 flex flex-wrap items-center justify-center gap-3 rounded-2xl bg-violet-950 px-5 py-4 text-center text-white shadow-xl shadow-violet-950/15">
+            <Users aria-hidden="true" size={19} />
+            <span aria-live="polite" className="text-base font-black">
+              {connectedParticipants.length} {connectedParticipants.length === 1 ? 'player' : 'players'} joined
+            </span>
+            <span className="hidden text-sm text-violet-200 sm:inline">·</span>
+            <span className="text-sm font-semibold text-violet-100">Live lobby</span>
+          </footer>
+        </div>
+      </main>
+    )
+  }
+
   return (
-    <section className="mx-auto max-w-4xl pb-12">
+    <main className="min-h-screen bg-[#0b1020] px-5 py-8 text-white sm:px-8">
+      <section className="mx-auto max-w-4xl pb-12">
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white"
         to="/host/dashboard"
@@ -291,118 +411,17 @@ function HostGame() {
         <Radio aria-hidden="true" size={15} />
         Live game lobby
         <span className="ml-1 rounded-full bg-emerald-300/10 px-2.5 py-1 text-[10px] tracking-wide text-emerald-200">
-          {game?.status === 'lobby'
-            ? 'WAITING FOR PLAYERS'
-            : game?.status === 'answerReview'
-              ? 'SCOREBOARD'
-              : (game?.status ?? 'CONNECTING').toUpperCase()}
+          {game?.status === 'answerReview'
+            ? 'SCOREBOARD'
+            : (game?.status ?? 'CONNECTING').toUpperCase()}
         </span>
       </div>
       <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
         {game?.title ?? 'Starting your lobby…'}
       </h1>
       <p className="mt-2 text-sm text-slate-400">
-        {game?.status === 'lobby'
-          ? 'Share the PIN with your players. Their names appear here as they join.'
-          : 'Control the question flow for everyone in the room.'}
+        Control the question flow for everyone in the room.
       </p>
-
-      {game?.status === 'lobby' && (
-        <div className="mt-8 rounded-3xl border border-violet-300/15 bg-gradient-to-br from-violet-500/15 to-[#11172a] p-6 text-center sm:p-8">
-          <p className="text-xs font-bold tracking-[0.2em] text-violet-200 uppercase">Game PIN</p>
-          {game ? (
-            <p aria-label={`Game PIN ${pin}`} className="mt-4 text-6xl font-black tracking-[0.2em] text-white sm:text-7xl">
-              {pin}
-            </p>
-          ) : (
-            <div className="mx-auto mt-8 h-16 w-52 animate-pulse rounded-xl bg-white/10" />
-          )}
-          <button
-            className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10 disabled:opacity-50"
-            disabled={!game}
-            onClick={() => void copyJoinDetails()}
-            type="button"
-          >
-            {copied ? <Check aria-hidden="true" size={16} /> : <Copy aria-hidden="true" size={16} />}
-            {copied ? 'Copied join details' : 'Copy join details'}
-          </button>
-          <p className="mt-4 text-xs text-slate-400">
-            Players can visit <span className="font-semibold text-slate-200">{window.location.host}/join</span>
-          </p>
-        </div>
-      )}
-      {game?.status === 'lobby' && (
-        <div className="mt-5 grid gap-5 md:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-3xl border border-white/10 bg-[#11172a] p-5 sm:p-6">
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-            <div>
-              <h2 className="font-bold">Players in the lobby</h2>
-              <p className="mt-1 text-xs text-slate-400">Updates live</p>
-            </div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-400/10 px-3 py-1.5 text-sm font-bold text-blue-200">
-              <Users aria-hidden="true" size={15} />
-              {connectedParticipants.length} joined
-            </span>
-          </div>
-          {!game ? (
-            <div className="grid min-h-44 place-items-center text-sm text-slate-400">
-              <span className="inline-flex items-center gap-3">
-                <LoaderCircle aria-hidden="true" className="animate-spin text-violet-300" size={18} />
-                Connecting to the lobby…
-              </span>
-            </div>
-          ) : connectedParticipants.length === 0 ? (
-            <div className="grid min-h-44 place-items-center text-center">
-              <div>
-                <span className="mx-auto grid size-11 place-items-center rounded-xl bg-white/[0.06] text-slate-400">
-                  <Users aria-hidden="true" size={20} />
-                </span>
-                <p className="mt-3 text-sm font-semibold text-slate-200">Waiting for players to join</p>
-                <p className="mt-1 text-xs text-slate-500">Connected players will appear here.</p>
-              </div>
-            </div>
-          ) : (
-            <ul className="mt-5 grid max-h-96 grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
-              {connectedParticipants.map((participant) => (
-                <li
-                  className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.08] to-white/[0.03] p-3"
-                  key={participant.uid}
-                >
-                  <ParticipantAvatar
-                    avatarId={participant.avatarId}
-                    size="lg"
-                    uid={participant.uid}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
-                    {participant.nickname}
-                  </span>
-                  <Wifi aria-label="Connected" className="shrink-0 text-emerald-300" size={15} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-          <div className="flex flex-col justify-center rounded-3xl border border-white/10 bg-[#11172a] p-6">
-            <p className="text-sm leading-6 text-slate-300">
-              {connectedParticipants.length === 0
-                ? 'Share the Game PIN, then start when your group is ready.'
-                : `${connectedParticipants.length} ${connectedParticipants.length === 1 ? 'player is' : 'players are'} connected.`}
-            </p>
-            <button
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!game || working || connectedParticipants.length === 0}
-              onClick={() => void handleStartQuestion(0)}
-              type="button"
-            >
-              {working ? <LoaderCircle aria-hidden="true" className="animate-spin" size={17} /> : <Radio aria-hidden="true" size={17} />}
-              Start Question 1
-            </button>
-            {connectedParticipants.length === 0 && (
-              <p className="mt-3 text-xs text-slate-500">At least one player must join first.</p>
-            )}
-          </div>
-        </div>
-      )}
 
       {game?.status === 'question' && question && (
         <div className="mt-8 rounded-3xl border border-white/10 bg-[#11172a] p-5 sm:p-7">
@@ -539,7 +558,8 @@ function HostGame() {
           </button>
         </div>
       )}
-    </section>
+      </section>
+    </main>
   )
 }
 
