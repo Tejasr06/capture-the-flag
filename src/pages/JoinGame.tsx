@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, Users } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Flag, LoaderCircle } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getLiveGameErrorMessage, joinLiveGame } from '../services/gameService'
 
@@ -25,96 +26,88 @@ function JoinGame() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0b1020] px-5 py-12 text-white sm:px-8">
-      <div className="pointer-events-none absolute -left-40 top-10 size-96 rounded-full bg-violet-600/15 blur-[120px]" />
-      <div className="pointer-events-none absolute -right-36 bottom-0 size-96 rounded-full bg-blue-500/10 blur-[120px]" />
+    <main className="relative flex min-h-screen min-h-[100svh] items-center justify-center overflow-hidden bg-[#351078] px-5 py-10 text-white">
+      <div className="pointer-events-none absolute -left-56 -top-56 size-[42rem] rotate-45 bg-[#2b0b63]/70" />
+      <div className="pointer-events-none absolute -right-72 -bottom-80 size-[48rem] rounded-full border-[4rem] border-[#2b0b63]/40" />
+      <div className="pointer-events-none absolute -bottom-56 left-[42%] size-[34rem] rounded-full bg-[#46168e]/45" />
 
-      <section className="relative w-full max-w-md">
-        <Link
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white"
-          to="/"
+      <section className="relative z-10 w-full max-w-sm">
+        <motion.div
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-7 flex justify-center"
+          initial={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
         >
-          <ArrowLeft aria-hidden="true" size={16} />
-          Back to QuizArena
-        </Link>
-        <div className="rounded-3xl border border-white/10 bg-[#11172a]/95 p-6 shadow-2xl shadow-black/30 sm:p-8">
-          <span className="grid size-12 place-items-center rounded-2xl bg-violet-400/10 text-violet-200">
-            <Users aria-hidden="true" size={22} />
-          </span>
-          <h1 className="mt-6 text-3xl font-black tracking-tight">Join a game</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Enter the six-digit PIN from your host and choose a nickname for the leaderboard.
-          </p>
+          <Link aria-label="Capture the Flag home" className="inline-flex items-center gap-3 text-white" to="/">
+            <span className="grid size-12 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+              <Flag aria-hidden="true" size={25} />
+            </span>
+            <span className="text-2xl font-black tracking-[-0.06em] sm:text-3xl">Capture the Flag!</span>
+          </Link>
+        </motion.div>
 
+        <motion.div
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className="rounded-md bg-white p-4 shadow-2xl shadow-[#200650]/40 sm:p-5"
+          initial={{ opacity: 0, y: 18, scale: 0.98 }}
+          transition={{ delay: 0.08, duration: 0.5, ease: 'easeOut' }}
+        >
           {error && (
-            <div className="mt-6 rounded-xl border border-rose-300/20 bg-rose-300/[0.08] p-4 text-sm leading-6 text-rose-200" role="alert">
+            <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm leading-5 text-rose-700" role="alert">
               {error}
             </div>
           )}
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">Game PIN</span>
-              <span className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0b1020] px-4 focus-within:border-violet-400/60">
-                <LockKeyhole aria-hidden="true" className="shrink-0 text-slate-500" size={17} />
-                <input
-                  autoComplete="one-time-code"
-                  className="w-full bg-transparent py-4 text-center text-2xl font-black tracking-[0.3em] text-white outline-none placeholder:text-slate-700"
-                  inputMode="numeric"
-                  maxLength={6}
-                  onChange={(event) => {
-                    setPin(event.target.value.replace(/\D/g, '').slice(0, 6))
-                    setError('')
-                  }}
-                  pattern="\d{6}"
-                  placeholder="000000"
-                  required
-                  value={pin}
-                />
-              </span>
-            </label>
+          <form className="space-y-2.5" onSubmit={handleSubmit}>
+            <label className="sr-only" htmlFor="game-pin">Game PIN</label>
+            <input
+              autoComplete="one-time-code"
+              className="h-12 w-full rounded-md border-2 border-[#d1d1d1] bg-white px-3 text-center text-lg font-bold tracking-[0.12em] text-slate-800 outline-none transition placeholder:tracking-normal placeholder:text-slate-400 focus:border-violet-500"
+              id="game-pin"
+              inputMode="numeric"
+              maxLength={6}
+              onChange={(event) => {
+                setPin(event.target.value.replace(/\D/g, '').slice(0, 6))
+                setError('')
+              }}
+              pattern="\d{6}"
+              placeholder="Game PIN"
+              required
+              value={pin}
+            />
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">Nickname</span>
-              <input
-                autoComplete="nickname"
-                className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-600 focus:border-violet-400/60"
-                maxLength={20}
-                minLength={2}
-                onChange={(event) => {
-                  setNickname(event.target.value)
-                  setError('')
-                }}
-                placeholder="Choose a name for this game"
-                required
-                value={nickname}
-              />
-              <span className="mt-2 block text-xs text-slate-500">2–20 characters; letters, numbers, spaces, dots, dashes, or underscores.</span>
-            </label>
+            <label className="sr-only" htmlFor="nickname">Your nickname</label>
+            <input
+              autoComplete="nickname"
+              className="h-12 w-full rounded-md border-2 border-[#d1d1d1] bg-white px-3 text-center text-base font-semibold text-slate-800 outline-none transition placeholder:font-semibold placeholder:text-slate-400 focus:border-violet-500"
+              id="nickname"
+              maxLength={20}
+              minLength={2}
+              onChange={(event) => {
+                setNickname(event.target.value)
+                setError('')
+              }}
+              placeholder="Your nickname"
+              required
+              value={nickname}
+            />
 
             <button
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={joining || pin.length !== 6}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#292929] px-5 text-sm font-bold text-white transition hover:bg-[#171717] disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={joining || pin.length !== 6 || nickname.trim().length < 2}
               type="submit"
             >
               {joining ? (
                 <>
                   <LoaderCircle aria-hidden="true" className="animate-spin" size={17} />
-                  Joining the lobby…
+                  Joining…
                 </>
               ) : (
-                <>
-                  Join waiting room
-                  <ArrowRight aria-hidden="true" size={17} />
-                </>
+                'Enter'
               )}
             </button>
           </form>
-
-          <p className="mt-5 text-center text-xs leading-5 text-slate-500">
-            No account needed. QuizArena uses a temporary anonymous session to keep your place in the game.
-          </p>
-        </div>
+        </motion.div>
       </section>
     </main>
   )
