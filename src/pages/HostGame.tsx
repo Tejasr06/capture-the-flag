@@ -25,7 +25,9 @@ function HostGame() {
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [scores, setScores] = useState<LiveScore[]>([])
   const [working, setWorking] = useState(false)
+  const [nextQuestionCountdown, setNextQuestionCountdown] = useState<number | null>(null)
   const closeStarted = useRef(false)
+  const nextQuestionTimer = useRef<number | null>(null)
 
   useEffect(() => {
     if (!pin || !user) return
@@ -85,6 +87,15 @@ function HostGame() {
     ? Math.max(0, Math.ceil((questionDeadline - serverTime) / 1000))
     : 0
 
+  useEffect(
+    () => () => {
+      if (nextQuestionTimer.current !== null) {
+        window.clearTimeout(nextQuestionTimer.current)
+      }
+    },
+    [],
+  )
+
   useEffect(() => {
     if (!game || !pin || !user || game.status !== 'question' || !question || secondsRemaining > 0) {
       return
@@ -143,6 +154,32 @@ function HostGame() {
     } finally {
       setWorking(false)
     }
+  }
+
+  function handleStartNextQuestion() {
+    if (!pin || !user || !question) return
+    setError('')
+    setWorking(true)
+    setNextQuestionCountdown(5)
+
+    let secondsRemaining = 5
+    function tick() {
+      secondsRemaining -= 1
+      if (secondsRemaining === 0) {
+        nextQuestionTimer.current = null
+        setNextQuestionCountdown(null)
+        publishQuestion(pin, question.index + 1)
+          .catch((actionError: unknown) =>
+            setError(`Starting the next question failed: ${getLiveGameErrorMessage(actionError)}`),
+          )
+          .finally(() => setWorking(false))
+        return
+      }
+      setNextQuestionCountdown(secondsRemaining)
+      nextQuestionTimer.current = window.setTimeout(tick, 1000)
+    }
+
+    nextQuestionTimer.current = window.setTimeout(tick, 1000)
   }
 
   async function handleCloseQuestion() {
@@ -362,15 +399,33 @@ function HostGame() {
             {Object.keys(answers).length} of {participants.length} players answered. The host app calculated and published these scores.
           </p>
           {question.index + 1 < game.totalQuestions ? (
-            <button
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
-              disabled={working}
-              onClick={() => void handleStartQuestion(question.index + 1)}
-              type="button"
-            >
-              {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
-              Start Question {question.index + 2}
-            </button>
+            nextQuestionCountdown !== null ? (
+              <div
+                aria-live="polite"
+                className="mt-6 flex items-center gap-4 rounded-2xl border border-violet-300/20 bg-violet-300/[0.08] p-5"
+                role="status"
+              >
+                <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-violet-400/15 text-3xl font-black tabular-nums text-violet-100">
+                  {nextQuestionCountdown}
+                </span>
+                <div>
+                  <p className="font-bold text-white">Get ready for the next question</p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Starting in {nextQuestionCountdown}…
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
+                disabled={working}
+                onClick={handleStartNextQuestion}
+                type="button"
+              >
+                {working && <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />}
+                Next question
+              </button>
+            )
           ) : (
             <button
               className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50"
