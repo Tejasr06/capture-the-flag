@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
-import { ArrowLeft, Check, Clock3, LoaderCircle, Radio, Users, Wifi, WifiOff } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Check, Clock3, Flag, LoaderCircle, Radio, Users, Wifi, WifiOff } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import FinalLeaderboard from '../components/FinalLeaderboard'
+import ParticipantAvatar from '../components/ParticipantAvatar'
 import { useAuth } from '../hooks/useAuth'
 import type { LiveGame, LiveScore } from '../types/game'
 import {
   getLiveGameErrorMessage,
+  joinLiveGame,
   submitAnswer,
   watchLiveGame,
   watchLiveScores,
@@ -27,6 +29,7 @@ function ParticipantLobby() {
   const [serverTime, setServerTime] = useState(() => Date.now())
   const [serverTimeReady, setServerTimeReady] = useState(false)
   const [scores, setScores] = useState<LiveScore[]>([])
+  const reconnectStarted = useRef(false)
   const gameStatus = game?.status
 
   useEffect(() => {
@@ -64,6 +67,29 @@ function ParticipantLobby() {
   }, [gameStatus, pin, user])
 
   const question = game?.currentQuestion
+  const participant = game?.participants[user?.uid ?? '']
+  useEffect(() => {
+    if (
+      !pin ||
+      !user ||
+      gameStatus !== 'lobby' ||
+      !participant ||
+      participant.connected ||
+      reconnectStarted.current
+    ) {
+      return
+    }
+
+    reconnectStarted.current = true
+    joinLiveGame(pin, participant.nickname)
+      .catch((reconnectError: unknown) =>
+        setError(`Reconnecting to the lobby failed: ${getLiveGameErrorMessage(reconnectError)}`),
+      )
+      .finally(() => {
+        reconnectStarted.current = false
+      })
+  }, [gameStatus, participant, pin, user])
+
   const questionIndex = question?.index
   const questionStartedAt = question?.startedAt
   useEffect(() => {
@@ -75,7 +101,6 @@ function ParticipantLobby() {
   if (!user) return <Navigate replace to="/join" />
   if (!pin || !/^\d{6}$/.test(pin)) return <Navigate replace to="/join" />
 
-  const participant = game?.participants[user.uid]
   const selectedOption =
     question && selection?.questionIndex === question.index
       ? selection.optionIndex
@@ -83,6 +108,7 @@ function ParticipantLobby() {
   const sortedParticipants = Object.values(game?.participants ?? {}).sort(
     (a, b) => a.joinedAt - b.joinedAt,
   )
+  const connectedParticipants = sortedParticipants.filter((item) => item.connected)
   const secondsRemaining = question
     ? Math.max(
         0,
@@ -114,6 +140,106 @@ function ParticipantLobby() {
 
   if (game?.status === 'leaderboard') {
     return <FinalLeaderboard currentUid={user.uid} error={error} scores={scores} />
+  }
+
+  if (game?.status === 'lobby' && participant) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#dce8f7] px-4 py-7 text-slate-900 sm:px-8 sm:py-10">
+        <div className="pointer-events-none absolute -left-36 top-24 size-80 rounded-full bg-white/70 blur-3xl" />
+        <div className="pointer-events-none absolute -right-32 top-1/3 size-96 rounded-full bg-sky-300/30 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-48 left-1/4 size-[32rem] rounded-full bg-emerald-200/30 blur-3xl" />
+
+        <div className="relative mx-auto max-w-6xl">
+          {error && (
+            <div className="mt-5 rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+              {error}
+              {error.includes('Join the game again') && (
+                <Link className="ml-2 font-semibold underline" to="/join">Join again</Link>
+              )}
+            </div>
+          )}
+
+          <header className="mt-6 text-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-violet-900 px-4 py-2 text-sm font-black text-white shadow-lg shadow-violet-900/20">
+              <Flag aria-hidden="true" size={17} />
+              Capture the Flag!
+            </div>
+            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
+              You’re in, {participant.nickname}!
+            </h1>
+            <p className="mt-2 text-sm font-medium text-slate-600">
+              {game.title} · Waiting for the host to start
+            </p>
+          </header>
+
+          <section className="mt-7 rounded-3xl border border-white/80 bg-white/75 p-4 shadow-xl shadow-slate-700/10 backdrop-blur-sm sm:p-7">
+            <div className="mx-auto flex max-w-2xl flex-col items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center sm:flex-row sm:text-left">
+              <div>
+                <p className="text-xs font-bold tracking-[0.18em] text-slate-500 uppercase">Game PIN</p>
+                <p className="mt-1 text-3xl font-black tracking-[0.12em] text-slate-900 sm:text-4xl">{pin}</p>
+              </div>
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${
+                participant.connected
+                  ? 'bg-emerald-50 text-emerald-800'
+                  : 'bg-amber-50 text-amber-800'
+              }`}>
+                {participant.connected ? (
+                  <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
+                ) : (
+                  <LoaderCircle aria-hidden="true" className="animate-spin" size={13} />
+                )}
+                {participant.connected ? 'Connected' : 'Reconnecting'}
+              </span>
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black sm:text-2xl">Players in the lobby</h2>
+                <p className="mt-1 text-sm text-slate-600">Your character is ready. Hang tight!</p>
+              </div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-violet-900 px-4 py-2 text-sm font-bold text-white">
+                <Users aria-hidden="true" size={16} />
+                {connectedParticipants.length} {connectedParticipants.length === 1 ? 'player' : 'players'} joined
+              </span>
+            </div>
+
+            {connectedParticipants.length === 0 ? (
+              <div className="mt-6 grid min-h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white/50 text-center text-sm text-slate-500">
+                Waiting for connected players…
+              </div>
+            ) : (
+              <ul aria-label="Connected players" className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {connectedParticipants.map((item) => (
+                  <li
+                    className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 shadow-sm transition ${
+                      item.uid === user.uid
+                        ? 'border-violet-300 bg-violet-50'
+                        : 'border-slate-200 bg-white/90'
+                    }`}
+                    key={item.uid}
+                  >
+                    <ParticipantAvatar avatarId={item.avatarId} size="lg" uid={item.uid} />
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800 sm:text-base">
+                      {item.nickname}
+                    </span>
+                    {item.uid === user.uid && (
+                      <span className="rounded-full bg-violet-900/10 px-2 py-1 text-[10px] font-black text-violet-900">
+                        YOU
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-200 pt-5 text-sm font-semibold text-slate-600">
+              <LoaderCircle aria-hidden="true" className="animate-spin text-violet-700" size={16} />
+              The host will start the game soon
+            </div>
+          </section>
+        </div>
+      </main>
+    )
   }
 
   return (
