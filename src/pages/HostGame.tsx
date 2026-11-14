@@ -274,10 +274,14 @@ function HostGame() {
 
   if (game?.status === 'lobby') {
     return (
-      <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-gradient-to-b from-[#dce8f7] via-[#eaf4fc] to-[#f8fcff] px-4 py-5 text-slate-900 sm:px-8 sm:py-7">
-        <div className="pointer-events-none absolute -left-36 top-20 size-96 rounded-full bg-white/80 blur-3xl" />
-        <div className="pointer-events-none absolute -right-36 top-1/4 size-[30rem] rounded-full bg-sky-300/30 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-48 left-1/3 size-[34rem] rounded-full bg-emerald-200/30 blur-3xl" />
+      <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-[#dce8f7] px-4 py-5 text-slate-900 sm:px-8 sm:py-7">
+        <img
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 size-full object-cover"
+          src="/winter-lobby-background.svg"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-white/10" />
 
         <div className="relative mx-auto flex min-h-[calc(100svh-3.5rem)] w-full max-w-7xl flex-col">
           <header className="flex flex-wrap items-center justify-between gap-3">
