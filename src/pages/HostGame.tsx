@@ -8,7 +8,6 @@ import ParticipantAvatar from '../components/ParticipantAvatar'
 import QuestionScoreboard from '../components/QuestionScoreboard'
 import { useAuth } from '../hooks/useAuth'
 import {
-  ANSWER_DISTRIBUTION_DURATION_MS,
   QUESTION_READING_DURATION_MS,
 } from '../utils/gameTiming'
 import type { LiveGame, LiveScore } from '../types/game'
@@ -37,7 +36,7 @@ function HostGame() {
   const [scores, setScores] = useState<LiveScore[]>([])
   const [working, setWorking] = useState(false)
   const [countdownRetry, setCountdownRetry] = useState(0)
-  const [dismissedAnswerDistributionKey, setDismissedAnswerDistributionKey] = useState<string | null>(null)
+  const [questionScoreboardKey, setQuestionScoreboardKey] = useState<string | null>(null)
   const closeStarted = useRef(false)
   const countdownStarted = useRef<string | null>(null)
 
@@ -109,16 +108,8 @@ function HostGame() {
     game?.status === 'answerReview' && game.answerReveal && question && pin
       ? `${pin}:${question.index}:${question.startedAt}`
       : null
-  useEffect(() => {
-    if (!answerReviewKey) return
-    const timeout = window.setTimeout(
-      () => setDismissedAnswerDistributionKey(answerReviewKey),
-      ANSWER_DISTRIBUTION_DURATION_MS,
-    )
-    return () => window.clearTimeout(timeout)
-  }, [answerReviewKey])
-  const showAnswerDistribution =
-    answerReviewKey !== null && dismissedAnswerDistributionKey !== answerReviewKey
+  const showQuestionScoreboard =
+    answerReviewKey !== null && questionScoreboardKey === answerReviewKey
   const questionAnswerStartsAt = question
     ? question.startedAt + QUESTION_READING_DURATION_MS
     : 0
@@ -510,14 +501,7 @@ function HostGame() {
 
       {game?.status === 'answerReview' && question && game.answerReveal && (
         <div className="mt-8">
-          {showAnswerDistribution ? (
-            <AnswerDistribution
-              answers={answers}
-              correctIndex={game.answerReveal.correctIndex}
-              question={question}
-              questionNumber={question.index + 1}
-            />
-          ) : (
+          {showQuestionScoreboard ? (
             <QuestionScoreboard
               action={question.index + 1 < game.totalQuestions ? (
                 <button
@@ -542,6 +526,16 @@ function HostGame() {
               )}
               questionNumber={question.index + 1}
               scores={scores}
+            />
+          ) : (
+            <AnswerDistribution
+              answers={answers}
+              correctIndex={game.answerReveal.correctIndex}
+              onContinue={() => {
+                if (answerReviewKey) setQuestionScoreboardKey(answerReviewKey)
+              }}
+              question={question}
+              questionNumber={question.index + 1}
             />
           )}
         </div>

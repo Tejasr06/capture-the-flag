@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
+import { useState } from 'react'
 import { Check, ChartNoAxesColumnIncreasing } from 'lucide-react'
 import type { LiveQuestion } from '../types/game'
 
@@ -8,18 +7,7 @@ interface AnswerDistributionProps {
   questionNumber: number
   answers: Record<string, number>
   correctIndex: number
-}
-
-function AnimatedCount({ count }: { count: number }) {
-  const value = useMotionValue(0)
-  const displayedValue = useTransform(value, (current) => Math.round(current).toLocaleString())
-
-  useEffect(() => {
-    const controls = animate(value, count, { delay: 0.35, duration: 1.4, ease: 'easeOut' })
-    return () => controls.stop()
-  }, [count, value])
-
-  return <motion.span>{displayedValue}</motion.span>
+  onContinue: () => void
 }
 
 function AnswerDistribution({
@@ -27,8 +15,9 @@ function AnswerDistribution({
   questionNumber,
   answers,
   correctIndex,
+  onContinue,
 }: AnswerDistributionProps) {
-  const [showCorrectAnswer, setShowCorrectAnswer] = useState(true)
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false)
   const answerCounts = question.options.map(
     (_, optionIndex) => Object.values(answers).filter((answer) => answer === optionIndex).length,
   )
@@ -38,52 +27,48 @@ function AnswerDistribution({
   return (
     <section
       aria-label={`Answer distribution after question ${questionNumber}`}
-      className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 text-slate-900 shadow-lg shadow-slate-200/50 sm:p-6"
+      className="overflow-hidden rounded-3xl border border-sky-100 bg-sky-50 p-4 text-slate-900 sm:p-7"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-black tracking-[0.18em] text-slate-500 uppercase">
+          <p className="text-xs font-black tracking-[0.16em] text-sky-800 uppercase">
             Question {questionNumber} complete
           </p>
           <h2 className="mt-1 flex items-center gap-2 text-xl font-black sm:text-2xl">
-            <ChartNoAxesColumnIncreasing aria-hidden="true" className="text-slate-700" size={22} />
+            <ChartNoAxesColumnIncreasing aria-hidden="true" className="text-sky-700" size={23} />
             Answer distribution
           </h2>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
-            onClick={() => setShowCorrectAnswer((current) => !current)}
-            type="button"
-          >
-            {showCorrectAnswer ? 'Hide correct answer' : 'Show correct answer'}
-          </button>
-          <p className="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
-            <AnimatedCount count={totalAnswers} /> responses
-          </p>
-        </div>
+        <p className="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm">
+          {totalAnswers} {totalAnswers === 1 ? 'response' : 'responses'}
+        </p>
       </header>
 
-      {showCorrectAnswer && (
-        <div className="mt-4 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-700">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <button
+          aria-expanded={showCorrectAnswer}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
+          onClick={() => setShowCorrectAnswer((current) => !current)}
+          type="button"
+        >
+          {showCorrectAnswer ? 'Hide correct answer' : 'Show correct answer'}
+        </button>
+        {showCorrectAnswer && (
+          <p className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-800">
             <Check aria-hidden="true" size={16} />
             Correct answer: {String.fromCharCode(65 + correctIndex)}. {question.options[correctIndex]}
-          </div>
-        </div>
-      )}
+          </p>
+        )}
+      </div>
 
-      <ol aria-label="Answer counts" className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-5">
+      <ol
+        aria-label="Answer counts"
+        className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5"
+      >
         {question.options.map((option, index) => {
           const count = answerCounts[index]
           const isCorrect = index === correctIndex
-          const barHeight = count === 0 || maxCount === 0 ? 0 : Math.max(18, (count / maxCount) * 170)
-          const barBackground = showCorrectAnswer
-            ? isCorrect
-              ? 'bg-emerald-500'
-              : 'bg-rose-400'
-            : 'bg-slate-200'
+          const barHeight = count === 0 || maxCount === 0 ? 0 : Math.max(18, (count / maxCount) * 210)
 
           return (
             <li
@@ -91,23 +76,24 @@ function AnswerDistribution({
               className="min-w-0"
               key={index}
             >
-              <div className="mx-auto flex h-40 max-w-40 flex-col items-center justify-end gap-2 border-b border-slate-200 px-2 pb-1">
-                <motion.span
-                  animate={{ height: barHeight }}
-                  className={`w-full max-w-[92px] rounded-t-xl ${barBackground}`}
-                  initial={{ height: 0 }}
-                  transition={{ delay: 0.2, duration: 1.2, ease: 'easeOut' }}
+              <div className="relative mx-auto flex h-64 max-w-48 items-end justify-center border-b-[3px] border-sky-400 px-2">
+                <span
+                  aria-hidden="true"
+                  className={`absolute bottom-0 w-[78%] max-w-40 rounded-t-sm ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                  style={{ height: barHeight }}
                 />
-                <span className="text-lg font-black tabular-nums text-slate-800">
-                  <AnimatedCount count={count} />
+                <span
+                  className="absolute left-1/2 z-10 -translate-x-1/2 rounded-xl bg-white px-3 py-1.5 text-2xl font-black tabular-nums text-slate-900 shadow-sm"
+                  style={{ bottom: barHeight + 8 }}
+                >
+                  {count}
                 </span>
               </div>
-
-              <div className="mt-3 flex min-h-16 flex-col items-center justify-start gap-1 rounded-xl bg-slate-50 px-2 py-2 text-center">
-                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              <div className="mt-3 flex min-h-16 flex-col items-center justify-start gap-1 rounded-xl bg-white px-2 py-2 text-center shadow-sm">
+                <span className="text-xs font-black tracking-wide text-slate-500 uppercase">
                   {String.fromCharCode(65 + index)}
                 </span>
-                <span className="line-clamp-2 text-xs font-semibold leading-4 text-slate-800 sm:text-sm">
+                <span className="line-clamp-2 text-xs font-bold leading-4 text-slate-800 sm:text-sm">
                   {option}
                 </span>
                 {showCorrectAnswer && isCorrect && (
@@ -121,6 +107,16 @@ function AnswerDistribution({
           )
         })}
       </ol>
+
+      <div className="mt-6 flex justify-center border-t border-sky-200 pt-5">
+        <button
+          className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          onClick={onContinue}
+          type="button"
+        >
+          Continue to scoreboard
+        </button>
+      </div>
     </section>
   )
 }
