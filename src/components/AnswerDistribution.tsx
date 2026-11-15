@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Check, ChartNoAxesColumnIncreasing } from 'lucide-react'
 import type { LiveQuestion } from '../types/game'
 
@@ -7,7 +7,6 @@ interface AnswerDistributionProps {
   questionNumber: number
   answers: Record<string, number>
   correctIndex: number
-  onContinue: () => void
 }
 
 function AnswerDistribution({
@@ -15,9 +14,7 @@ function AnswerDistribution({
   questionNumber,
   answers,
   correctIndex,
-  onContinue,
 }: AnswerDistributionProps) {
-  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false)
   const answerCounts = question.options.map(
     (_, optionIndex) => Object.values(answers).filter((answer) => answer === optionIndex).length,
   )
@@ -44,26 +41,9 @@ function AnswerDistribution({
         </p>
       </header>
 
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-        <button
-          aria-expanded={showCorrectAnswer}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
-          onClick={() => setShowCorrectAnswer((current) => !current)}
-          type="button"
-        >
-          {showCorrectAnswer ? 'Hide correct answer' : 'Show correct answer'}
-        </button>
-        {showCorrectAnswer && (
-          <p className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-800">
-            <Check aria-hidden="true" size={16} />
-            Correct answer: {String.fromCharCode(65 + correctIndex)}. {question.options[correctIndex]}
-          </p>
-        )}
-      </div>
-
       <ol
         aria-label="Answer counts"
-        className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5"
+        className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5"
       >
         {question.options.map((option, index) => {
           const count = answerCounts[index]
@@ -77,17 +57,21 @@ function AnswerDistribution({
               key={index}
             >
               <div className="relative mx-auto flex h-64 max-w-48 items-end justify-center border-b-[3px] border-sky-400 px-2">
-                <span
+                <motion.span
                   aria-hidden="true"
                   className={`absolute bottom-0 w-[78%] max-w-40 rounded-t-sm ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                  style={{ height: barHeight }}
+                  animate={{ height: barHeight }}
+                  initial={{ height: 0 }}
+                  transition={{ delay: 0.2, duration: 1.2, ease: 'easeOut' }}
                 />
-                <span
+                <motion.span
                   className="absolute left-1/2 z-10 -translate-x-1/2 rounded-xl bg-white px-3 py-1.5 text-2xl font-black tabular-nums text-slate-900 shadow-sm"
-                  style={{ bottom: barHeight + 8 }}
+                  animate={{ bottom: barHeight + 8 }}
+                  initial={{ bottom: 8 }}
+                  transition={{ delay: 0.2, duration: 1.2, ease: 'easeOut' }}
                 >
                   {count}
-                </span>
+                </motion.span>
               </div>
               <div className="mt-3 flex min-h-16 flex-col items-center justify-start gap-1 rounded-xl bg-white px-2 py-2 text-center shadow-sm">
                 <span className="text-xs font-black tracking-wide text-slate-500 uppercase">
@@ -96,7 +80,7 @@ function AnswerDistribution({
                 <span className="line-clamp-2 text-xs font-bold leading-4 text-slate-800 sm:text-sm">
                   {option}
                 </span>
-                {showCorrectAnswer && isCorrect && (
+                {isCorrect && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-black tracking-wide text-emerald-700 uppercase">
                     <Check aria-hidden="true" size={12} />
                     Correct
@@ -108,15 +92,6 @@ function AnswerDistribution({
         })}
       </ol>
 
-      <div className="mt-6 flex justify-center border-t border-sky-200 pt-5">
-        <button
-          className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-          onClick={onContinue}
-          type="button"
-        >
-          Continue to scoreboard
-        </button>
-      </div>
     </section>
   )
 }
