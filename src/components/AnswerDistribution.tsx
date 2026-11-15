@@ -7,6 +7,7 @@ interface AnswerDistributionProps {
   questionNumber: number
   answers: Record<string, number>
   correctIndex: number
+  onContinue: () => void
 }
 
 function AnswerDistribution({
@@ -14,6 +15,7 @@ function AnswerDistribution({
   questionNumber,
   answers,
   correctIndex,
+  onContinue,
 }: AnswerDistributionProps) {
   const answerCounts = question.options.map(
     (_, optionIndex) => Object.values(answers).filter((answer) => answer === optionIndex).length,
@@ -92,6 +94,15 @@ function AnswerDistribution({
         })}
       </ol>
 
+      <div className="mt-6 flex justify-center border-t border-sky-200 pt-5">
+        <button
+          className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          onClick={onContinue}
+          type="button"
+        >
+          Continue to scoreboard
+        </button>
+      </div>
     </section>
   )
 }
