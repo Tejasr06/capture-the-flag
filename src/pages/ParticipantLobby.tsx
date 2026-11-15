@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, Clock3, Flag, LoaderCircle, LogOut, Radio, Users, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, Check, Clock3, Flag, LoaderCircle, LogOut, Radio, Users, Wifi, WifiOff, X } from 'lucide-react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import FinalLeaderboard from '../components/FinalLeaderboard'
 import ParticipantAvatar from '../components/ParticipantAvatar'
@@ -14,6 +14,7 @@ import {
   watchLiveGame,
   watchLiveScores,
   watchParticipantAnswer,
+  watchParticipantQuestionPoints,
   watchServerTime,
 } from '../services/gameService'
 
@@ -33,6 +34,11 @@ function ParticipantLobby() {
   const [serverTime, setServerTime] = useState(() => Date.now())
   const [serverTimeReady, setServerTimeReady] = useState(false)
   const [scores, setScores] = useState<LiveScore[]>([])
+  const [questionPoints, setQuestionPoints] = useState<{
+    pin: string
+    questionIndex: number
+    points: number | null
+  } | null>(null)
   const reconnectStarted = useRef(false)
   const gameStatus = game?.status
 
@@ -97,10 +103,30 @@ function ParticipantLobby() {
 
   const questionIndex = question?.index
   const questionStartedAt = question?.startedAt
+  const correctAnswerIndex = game?.answerReveal?.correctIndex
   useEffect(() => {
     if (!pin || !user || questionIndex === undefined || questionStartedAt === undefined) return
     return watchParticipantAnswer(pin, user.uid, setSubmittedOption, setError)
   }, [pin, questionIndex, questionStartedAt, user])
+
+  useEffect(() => {
+    if (
+      !pin ||
+      !user ||
+      gameStatus !== 'answerReview' ||
+      correctAnswerIndex === undefined ||
+      questionIndex === undefined
+    ) {
+      return
+    }
+    return watchParticipantQuestionPoints(
+      pin,
+      user.uid,
+      questionIndex,
+      (points) => setQuestionPoints({ pin, questionIndex, points }),
+      (message) => setError(`Your score could not be loaded: ${message}`),
+    )
+  }, [correctAnswerIndex, gameStatus, pin, questionIndex, user])
 
   if (loading) return <Loading label="Restoring your participant session…" />
   if (!user) return <Navigate replace to="/join" />
@@ -109,6 +135,12 @@ function ParticipantLobby() {
   const selectedOption =
     question && selection?.questionIndex === question.index
       ? selection.optionIndex
+      : null
+  const participantAnswerIsCorrect =
+    submittedOption !== null && submittedOption === game?.answerReveal?.correctIndex
+  const pointsEarned =
+    questionPoints?.pin === pin && questionPoints.questionIndex === question?.index
+      ? questionPoints.points
       : null
   const sortedParticipants = Object.values(game?.participants ?? {}).sort(
     (a, b) => a.joinedAt - b.joinedAt,
@@ -335,7 +367,7 @@ function ParticipantLobby() {
               : game?.status === 'question' && question
               ? `Question ${question.index + 1} of ${game.totalQuestions}`
               : game?.status === 'answerReview'
-                ? 'Answer revealed'
+                ? 'Your answer result'
                 : game?.status === 'ended'
                   ? 'Quiz complete'
                   : participant
@@ -447,29 +479,55 @@ function ParticipantLobby() {
           )}
 
           {game?.status === 'answerReview' && question && game.answerReveal && (
-            <section aria-live="polite" className="mt-7">
-              <h2 className="text-2xl font-bold leading-snug">{question.prompt}</h2>
-              <div className="mt-5 grid gap-3">
-                {question.options.map((option, index) => (
-                  <div
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
-                      index === game.answerReveal?.correctIndex
-                        ? 'border-emerald-300/30 bg-emerald-300/[0.08] text-emerald-100'
-                        : index === submittedOption
-                          ? 'border-rose-300/30 bg-rose-300/[0.06] text-rose-100'
-                          : 'border-white/[0.08] bg-[#0b1020] text-slate-300'
-                    }`}
-                    key={index}
-                  >
-                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-white/[0.07] text-xs font-bold">
-                      {String.fromCharCode(65 + index)}
+            <section
+              aria-label="Your answer result"
+              aria-live="polite"
+              className="mt-7 overflow-hidden rounded-3xl border border-violet-300/20 bg-gradient-to-br from-[#4b1687] via-[#38106f] to-[#28105b] px-5 py-9 text-center shadow-xl shadow-violet-950/30 sm:px-8 sm:py-12"
+            >
+              <p className="text-xs font-black tracking-[0.18em] text-violet-200 uppercase">
+                Question {question.index + 1} result
+              </p>
+              <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
+                {submittedOption === null
+                  ? 'No answer'
+                  : participantAnswerIsCorrect
+                    ? 'Correct!'
+                    : 'Incorrect'}
+              </h2>
+              <div
+                className={`mx-auto mt-6 grid size-24 place-items-center rounded-full border-4 border-white/90 shadow-lg sm:size-28 ${
+                  participantAnswerIsCorrect ? 'bg-emerald-500' : 'bg-rose-500'
+                }`}
+              >
+                {participantAnswerIsCorrect ? (
+                  <Check aria-hidden="true" className="text-white" size={58} strokeWidth={4} />
+                ) : (
+                  <X aria-hidden="true" className="text-white" size={54} strokeWidth={4} />
+                )}
+              </div>
+              <p className="mt-5 text-base font-semibold text-violet-100">
+                {submittedOption === null
+                  ? 'Time ran out before you answered.'
+                  : participantAnswerIsCorrect
+                    ? 'Nice work!'
+                    : 'You can get the next one!'}
+              </p>
+              <div className="mx-auto mt-6 max-w-sm rounded-xl bg-[#21094e]/80 px-5 py-3 text-white">
+                {pointsEarned === null ? (
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-violet-100">
+                    <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />
+                    Calculating points…
+                  </span>
+                ) : (
+                  <>
+                    <span className="block text-2xl font-black tabular-nums">
+                      {pointsEarned > 0 ? '+' : ''}{pointsEarned.toLocaleString()}
                     </span>
-                    <span className="flex-1">{option}</span>
-                    {index === game.answerReveal.correctIndex && (
-                      <Check aria-label="Correct answer" className="text-emerald-300" size={17} />
-                    )}
-                  </div>
-                ))}
+                    <span className="mt-1 block text-[11px] font-black tracking-[0.14em] text-violet-200 uppercase">
+                      Points earned
+                    </span>
+                  </>
+                )}
               </div>
             </section>
           )}

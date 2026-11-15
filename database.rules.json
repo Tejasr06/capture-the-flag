@@ -159,6 +159,7 @@
         ".read": "auth != null && (auth.uid === root.child('liveGames').child($pin).child('hostUid').val() || (root.child('liveGames').child($pin).child('participants').child(auth.uid).exists() && (root.child('liveGames').child($pin).child('status').val() === 'ended' || root.child('liveGames').child($pin).child('status').val() === 'leaderboard')))",
         ".write": false,
         "$uid": {
+          ".read": "auth != null && auth.uid === $uid && root.child('liveGames').child($pin).child('status').val() === 'answerReview'",
           ".write": "auth != null && auth.uid === root.child('liveGames').child($pin).child('hostUid').val() && root.child('liveGames').child($pin).child('participants').child($uid).exists()",
           ".validate": "newData.hasChildren(['uid', 'nickname', 'totalPoints', 'lastQuestionPoints', 'questionScores']) && newData.child('uid').val() === $uid && newData.child('nickname').isString() && newData.child('totalPoints').isNumber() && newData.child('totalPoints').val() >= 0 && newData.child('lastQuestionPoints').isNumber() && newData.child('lastQuestionPoints').val() >= 0 && newData.child('questionScores').hasChildren()",
           "avatarId": {

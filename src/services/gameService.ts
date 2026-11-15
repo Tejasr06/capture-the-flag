@@ -908,6 +908,44 @@ export function watchParticipantAnswer(
   }
 }
 
+export function watchParticipantQuestionPoints(
+  pin: string,
+  participantUid: string,
+  questionIndex: number,
+  onPoints: (points: number | null) => void,
+  onError: (message: string) => void,
+): () => void {
+  let unsubscribe: (() => void) | undefined
+  let cancelled = false
+
+  void getRealtimeDatabase()
+    .then((database) => {
+      if (cancelled) return
+      unsubscribe = onValue(
+        ref(database, `liveScores/${pin}/${participantUid}/questionScores/${questionIndex}`),
+        (snapshot) => {
+          const value: unknown = snapshot.val()
+          if (value === null) {
+            onPoints(null)
+            return
+          }
+          if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+            onError('Your score data is invalid.')
+            return
+          }
+          onPoints(value)
+        },
+        (error) => onError(formatRealtimeError(error)),
+      )
+    })
+    .catch((error: unknown) => onError(formatRealtimeError(error)))
+
+  return () => {
+    cancelled = true
+    unsubscribe?.()
+  }
+}
+
 export function getLiveGameErrorMessage(error: unknown) {
   return formatRealtimeError(error)
 }
